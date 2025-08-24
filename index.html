@@ -2,273 +2,159 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Peculiar's Adventure 💖</title>
-  
-  <!-- ==========================
-       GitHub-Ready HTML Game
-       Author: YourName
-       Repo: Peculiar's Adventure
-       Description: Cute mobile-friendly platformer
-       ========================== -->
-
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Peculiar's Extended Adventure 💖</title>
   <style>
-    body {
-      margin: 0;
-      background: #ffe6f0;
-      font-family: sans-serif;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-
-    #gameWrap {
-      position: fixed;
-      inset: 0;
-      display: grid;
-      place-items: center;
-    }
-
-    canvas {
-      background: #fff;
-      border: 4px solid #ff99cc;
-      border-radius: 20px;
-      box-shadow: 0 8px 20px rgba(0,0,0,.2);
-      touch-action: none;
-      max-width: 100%;
-      height: auto;
-    }
-
-    #controls {
-      position: fixed;
-      bottom: 20px;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: space-around;
-    }
-
-    button {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      border: none;
-      background: #fff0f5;
-      font-size: 22px;
-      box-shadow: 0 4px 10px rgba(0,0,0,.2);
-      transition: transform 0.1s;
-    }
-
-    button:active {
-      transform: scale(0.9);
-    }
-
-    #win {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.85);
-      color: #fff;
-      font-family: sans-serif;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      z-index: 10;
-      padding: 20px;
-      text-align: center;
-    }
-
-    #win h1 {
-      background: #ff99cc;
-      padding: 20px;
-      border-radius: 20px;
-      max-width: 90%;
-    }
-
-    #win p {
-      font-size: 18px;
-      margin-top: 20px;
-      max-width: 90%;
-    }
+    body { margin:0; background:#ffe6f0; overflow:hidden; }
+    #gameWrap { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; }
+    canvas { background:linear-gradient(#b3e5fc, #fff); border:4px solid #ff99cc; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
+    #controls { position:fixed; bottom:20px; left:0; right:0; display:flex; justify-content:space-around; z-index:10; }
+    button { width:60px; height:60px; border-radius:50%; border:none; background:#fff0f5; font-size:22px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
+    #win { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); color:#fff; font-family:sans-serif; justify-content:center; align-items:center; flex-direction:column; z-index:20; padding:20px; text-align:center; }
+    #win h1 { background:#ff99cc; padding:20px; border-radius:20px; max-width:90%; }
+    #win p { font-size:18px; margin-top:20px; max-width:90%; }
   </style>
 </head>
 <body>
-  <!-- Game Canvas -->
-  <div id="gameWrap">
-    <canvas id="game" width="1600" height="480"></canvas>
-  </div>
-
-  <!-- Touch Controls -->
+  <div id="gameWrap"><canvas id="game" width="6000" height="480"></canvas></div>
   <div id="controls">
     <button id="left">◀</button>
     <button id="jump">⟰</button>
     <button id="right">▶</button>
   </div>
-
-  <!-- Win Screen -->
   <div id="win">
     <h1>Congrats Peculiar 💖</h1>
     <p>You beat the big adventure!</p>
-    <p><strong>Don’t tell Peculiar, but Leczy kinda likes her 💕</strong></p>
+    <p><strong>Don't tell Peculiar, but Leczy kinda likes her 💕</strong></p>
     <button onclick="restart()">Play Again</button>
   </div>
-
 <script>
-/* ==========================
-   Game Variables
-   ========================== */
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-let keys = { left: false, right: false, jump: false };
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+let keys={left:false,right:false,jump:false};
 
-// Player
-let player = { x: 20, y: 420, w: 20, h: 20, vx: 0, vy: 0, onGround: false };
+function resizeCanvas(){
+  const maxW=window.innerWidth;
+  const maxH=window.innerHeight-120;
+  const scale=Math.min(maxW/canvas.width,maxH/canvas.height);
+  canvas.style.width=canvas.width*scale+"px";
+  canvas.style.height=canvas.height*scale+"px";
+}
+window.addEventListener("resize",resizeCanvas);
+resizeCanvas();
 
-// Goal
-let goal = { x: 1550, y: 420, w: 30, h: 30 };
+// player
+let player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,checkpoint:{x:20,y:420},jumping:false};
+// goal
+let goal={x:5950,y:420,w:30,h:30};
+// checkpoints
+let checkpoints=[{x:1000,y:430,w:20,h:30},{x:3000,y:430,w:20,h:30},{x:5000,y:430,w:20,h:30}];
+// platforms
+let plats=[{x:0,y:460,w:6000,h:20}];
+for(let i=200;i<5800;i+=300){
+  plats.push({x:i,y:400-Math.random()*200,w:100,h:10});
+}
+// spikes
+let spikes=[];
+for(let i=400;i<5800;i+=400){
+  spikes.push({x:i,y:440,w:40,h:20});
+}
+// enemies (ground, jumping, flying)
+let enemies=[];
+for(let i=600;i<5800;i+=600){
+  let type=Math.floor(Math.random()*3);
+  enemies.push({x:i,y:420,w:20,h:20,dir:Math.random()<0.5?-1:1,min:i-50,max:i+150,type:type,vy:0,baseY:420,onGround:true});
+}
 
-// Platforms
-let plats = [
-  {x:0,y:460,w:1600,h:20},
-  {x:150,y:400,w:100,h:10},
-  {x:300,y:350,w:100,h:10},
-  {x:450,y:300,w:100,h:10},
-  {x:600,y:250,w:100,h:10},
-  {x:750,y:300,w:100,h:10},
-  {x:900,y:350,w:100,h:10},
-  {x:1050,y:300,w:100,h:10},
-  {x:1200,y:250,w:100,h:10},
-  {x:1350,y:300,w:100,h:10},
-  {x:1500,y:350,w:100,h:10}
-];
-
-// Hazards
-let spikes = [
-  {x:200,y:440,w:40,h:20},
-  {x:500,y:440,w:40,h:20},
-  {x:800,y:440,w:40,h:20},
-  {x:1100,y:440,w:40,h:20},
-  {x:1400,y:440,w:40,h:20}
-];
-
-// Enemies
-let enemies = [
-  {x:350,y:420,w:20,h:20,dir:1,min:300,max:500},
-  {x:700,y:420,w:20,h:20,dir:1,min:650,max:850},
-  {x:1150,y:420,w:20,h:20,dir:-1,min:1100,max:1300}
-];
-
-/* ==========================
-   Helper Functions
-   ========================== */
 function rect(a,b){return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h)}
 
-function reset(){
-  player.x = 20; player.y = 420;
-  player.vx = player.vy = 0;
-  cameraX = 0;
-}
-
-function win(){
-  document.getElementById("win").style.display="flex";
-}
-
-function restart(){
-  document.getElementById("win").style.display="none";
-  reset();
-}
-
-/* ==========================
-   Game Loop
-   ========================== */
-let cameraX=0;
-
 function update(){
-  // Gravity
-  player.vy += 0.5;
-  
-  // Movement
-  if(keys.left) player.vx = -3;
-  else if(keys.right) player.vx = 3;
-  else player.vx = 0;
+  // smoother gravity
+  player.vy+=0.35; 
+  if(keys.left) player.vx=-3; else if(keys.right) player.vx=3; else player.vx=0;
 
-  if(keys.jump && player.onGround){
-    player.vy = -9;
-    player.onGround = false;
+  // variable jump height
+  if(keys.jump && player.onGround && !player.jumping){
+    player.vy=-9.5;
+    player.onGround=false;
+    player.jumping=true;
+  }
+  if(!keys.jump && player.jumping && player.vy < -3){
+    player.vy=-3; // cut jump short if button released
+    player.jumping=false;
+  }
+  if(!keys.jump && player.onGround){
+    player.jumping=false;
   }
 
-  player.x += player.vx;
-  player.y += player.vy;
-
-  player.onGround = false;
+  player.x+=player.vx; player.y+=player.vy;
+  player.onGround=false;
   for(let p of plats){
     if(rect(player,p)){
-      if(player.vy > 0){
-        player.y = p.y - player.h;
-        player.vy = 0;
-        player.onGround = true;
-      }
+      if(player.vy>0){player.y=p.y-player.h;player.vy=0;player.onGround=true;}
     }
   }
-
-  // Collisions
   for(let s of spikes){ if(rect(player,s)) reset(); }
   for(let e of enemies){
-    e.x += 2 * e.dir;
-    if(e.x < e.min || e.x > e.max) e.dir *= -1;
+    if(e.type===0){ // ground walker
+      e.x+=2*e.dir;
+      if(e.x<e.min||e.x>e.max) e.dir*=-1;
+    } else if(e.type===1){ // jumper
+      if(e.onGround){ e.vy=-8; e.onGround=false; }
+      e.vy+=0.5;
+      e.y+=e.vy;
+      if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; }
+    } else if(e.type===2){ // flyer
+      e.y=e.baseY+Math.sin(Date.now()/400)*40;
+      e.x+=1.5*e.dir;
+      if(e.x<e.min||e.x>e.max) e.dir*=-1;
+    }
     if(rect(player,e)) reset();
   }
-
-  if(player.y > canvas.height) reset();
+  for(let c of checkpoints){
+    if(rect(player,c)) player.checkpoint={x:c.x,y:c.y-10};
+  }
+  if(player.y>canvas.height) reset();
   if(rect(player,goal)) win();
 }
 
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.save();
-  ctx.translate(-cameraX,0);
+  ctx.save(); ctx.translate(-cameraX,0);
 
-  // Draw Goal
+  // goal
   ctx.fillStyle="#ffc0cb"; ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
-
-  // Draw Platforms
+  // platforms
   ctx.fillStyle="#add8e6"; plats.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
-
-  // Draw Hazards
+  // spikes
   ctx.fillStyle="#ff6666"; spikes.forEach(s=>ctx.fillRect(s.x,s.y,s.w,s.h));
-
-  // Draw Enemies
-  ctx.fillStyle="#9370db"; enemies.forEach(e=>ctx.fillRect(e.x,e.y,e.w,e.h));
-
-  // Draw Player
+  // enemies
+  enemies.forEach(e=>{
+    if(e.type===0){ ctx.fillStyle="#9370db"; }
+    else if(e.type===1){ ctx.fillStyle="#32cd32"; }
+    else { ctx.fillStyle="#ffa500"; }
+    ctx.fillRect(e.x,e.y,e.w,e.h);
+  });
+  // checkpoints
+  ctx.fillStyle="#ffd700"; checkpoints.forEach(c=>ctx.fillRect(c.x,c.y,c.w,c.h));
+  // player
   ctx.fillStyle="#ff69b4"; ctx.fillRect(player.x,player.y,player.w,player.h);
 
   ctx.restore();
 }
 
-function loop(){
-  update();
-  cameraX = Math.max(0, player.x - 200);
-  draw();
-  requestAnimationFrame(loop);
-}
-loop();
+let cameraX=0;
+function loop(){update();cameraX=Math.max(0,player.x-200);draw();requestAnimationFrame(loop);}loop();
 
-/* ==========================
-   Input Controls
-   ========================== */
-// Keyboard
-window.addEventListener("keydown",e=>{
-  if(e.key==="ArrowLeft") keys.left=true;
-  if(e.key==="ArrowRight") keys.right=true;
-  if(e.key==="ArrowUp") keys.jump=true;
-});
-window.addEventListener("keyup",e=>{
-  if(e.key==="ArrowLeft") keys.left=false;
-  if(e.key==="ArrowRight") keys.right=false;
-  if(e.key==="ArrowUp") keys.jump=false;
-});
+function reset(){player.x=player.checkpoint.x;player.y=player.checkpoint.y;player.vx=player.vy=0;}
+function win(){document.getElementById("win").style.display="flex";}
+function restart(){document.getElementById("win").style.display="none"; player.checkpoint={x:20,y:420}; reset();}
 
-// Touch + Mouse
+// keyboard controls
+window.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")keys.left=true;if(e.key==="ArrowRight")keys.right=true;if(e.key==="ArrowUp")keys.jump=true;});
+window.addEventListener("keyup",e=>{if(e.key==="ArrowLeft")keys.left=false;if(e.key==="ArrowRight")keys.right=false;if(e.key==="ArrowUp")keys.jump=false;});
+
+// touch controls
 function bind(btn,prop){
   btn.addEventListener("touchstart",e=>{e.preventDefault();keys[prop]=true;},{passive:false});
   btn.addEventListener("touchend",e=>{e.preventDefault();keys[prop]=false;},{passive:false});
@@ -281,3 +167,5 @@ bind(document.getElementById("jump"),"jump");
 </script>
 </body>
 </html>
+
+
