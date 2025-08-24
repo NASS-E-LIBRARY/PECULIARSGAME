@@ -1,57 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Peculiar's Adventure 💖</title>
-  <style>
-    body { margin:0; background:#ffe6f0; overflow:hidden; }
-    #gameWrap { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; }
-    canvas { background:linear-gradient(#b3e5fc,#fff); border:4px solid #ff99cc; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
-    #controls { position:fixed; bottom:20px; left:0; right:0; display:flex; justify-content:space-around; z-index:10; }
-    button { width:80px; height:80px; border-radius:50%; border:none; background:#fff0f5; font-size:26px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
-    #menu, #win { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; justify-content:center; align-items:center; flex-direction:column; z-index:20; color:#fff; font-family:sans-serif; }
-    #menu h1 { margin-bottom:20px; }
-    #menu button { width:auto; height:auto; border-radius:12px; padding:10px 20px; margin:8px; }
-    #win h1 { background:#ff99cc; padding:20px; border-radius:20px; max-width:90%; }
-    #win p { font-size:18px; margin-top:20px; max-width:90%; text-align:center; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Peculiar's Scary Adventure 💖</title>
+<style>
+  body { margin:0; background:#ffe6f0; overflow:hidden; }
+  #gameWrap { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; }
+  canvas { background:linear-gradient(#b3e5fc, #fff); border:4px solid #ff99cc; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
+  #controls { position:fixed; bottom:20px; left:0; right:0; display:flex; justify-content:space-around; z-index:10; }
+  button { width:80px; height:80px; border-radius:50%; border:none; background:#fff0f5; font-size:26px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
+  #win { display:none; position:fixed; inset:0; background:rgba(0,0,0,.95); color:#fff; font-family:sans-serif; justify-content:center; align-items:center; flex-direction:column; z-index:20; padding:20px; text-align:center; }
+  #win h1 { background:#ff99cc; padding:20px; border-radius:20px; max-width:90%; }
+  #win p { font-size:18px; margin-top:20px; max-width:90%; }
+</style>
 </head>
 <body>
-  <div id="gameWrap"><canvas id="game" width="800" height="480"></canvas></div>
-  <div id="controls">
-    <button id="left">◀</button>
-    <button id="jump">⟰</button>
-    <button id="right">▶</button>
-  </div>
-
-  <!-- Level Select Menu -->
-  <div id="menu">
-    <h1>Select Level</h1>
-    <button id="lvl1">Level 1</button>
-    <button id="lvl2" disabled>Level 2 (Locked)</button>
-  </div>
-
-  <!-- Win Screen -->
-  <div id="win">
-    <h1>Congrats Peculiar 💖</h1>
-    <p><strong>Don't tell Peculiar, but Leczy kinda likes her 💕</strong></p>
-    <button onclick="backToMenu()">Back to Level Select</button>
-  </div>
-
+<div id="gameWrap"><canvas id="game" width="800" height="480"></canvas></div>
+<div id="controls">
+  <button id="left">◀</button>
+  <button id="jump">⟰</button>
+  <button id="right">▶</button>
+</div>
+<div id="win">
+  <h1>Congrats Peculiar 💖</h1>
+  <p>LECZY thinks you're Perfect 💕</p>
+  <button onclick="restart()">Play Again</button>
+</div>
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 let keys={left:false,right:false,jump:false};
 
-let currentLevel=1;
-let unlockedLevels=1;
-
-let player,plats,spikes,enemies,goal,checkpoints,movers;
-const worldHeight=480;
-let worldWidth=6000;
-let cameraX=0;
-
+// Scale canvas to full width on mobile
 function resizeCanvas(){
   const maxW=window.innerWidth;
   const maxH=window.innerHeight-120;
@@ -62,137 +43,166 @@ function resizeCanvas(){
 window.addEventListener("resize",resizeCanvas);
 resizeCanvas();
 
-function rect(a,b){return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h)}
+// player
+let player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,checkpoint:{x:20,y:420},jumping:false};
 
-// ---------------- LEVEL BUILDER ----------------
-function loadLevel(n){
-  currentLevel=n;
-  document.getElementById("menu").style.display="none";
-  player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,checkpoint:{x:20,y:420},jumping:false};
-  plats=[{x:0,y:460,w:10000,h:20}];
-  spikes=[]; enemies=[]; checkpoints=[]; movers=[];
+// world
+const worldWidth=12000;
+const worldHeight=480;
 
-  if(n===1){
-    worldWidth=6000;
-    goal={x:5950,y:420,w:30,h:30};
-    checkpoints=[{x:1000,y:430,w:20,h:30},{x:3000,y:430,w:20,h:30},{x:5000,y:430,w:20,h:30}];
-    for(let i=200;i<5800;i+=300){ plats.push({x:i,y:400-Math.random()*200,w:100,h:10}); }
-    for(let i=400;i<5800;i+=400){ spikes.push({x:i,y:440,w:40,h:20}); }
-    for(let i=600;i<5800;i+=600){
-      let type=Math.floor(Math.random()*3);
-      enemies.push({x:i,y:420,w:20,h:20,dir:Math.random()<0.5?-1:1,min:i-50,max:i+150,type:type,vy:0,baseY:420,onGround:true});
-    }
-  }
+// goal
+let goal={x:11950,y:420,w:30,h:30};
 
-  if(n===2){
-    worldWidth=7000;
-    goal={x:6950,y:420,w:30,h:30};
-    checkpoints=[{x:1500,y:430,w:20,h:30},{x:3500,y:430,w:20,h:30},{x:5500,y:430,w:20,h:30}];
-    for(let i=200;i<6800;i+=250){ plats.push({x:i,y:380-Math.random()*250,w:120,h:10}); }
-    for(let i=400;i<6800;i+=300){ spikes.push({x:i,y:440,w:40,h:20}); }
-    for(let i=600;i<6800;i+=500){
-      let type=Math.floor(Math.random()*3);
-      enemies.push({x:i,y:420,w:20,h:20,dir:Math.random()<0.5?-1:1,min:i-100,max:i+200,type:type,vy:0,baseY:420,onGround:true});
-    }
-    // NEW mechanic: moving platforms
-    for(let i=1000;i<6800;i+=2000){
-      movers.push({x:i,y:300,w:100,h:15,dir:1,min:i-150,max:i+150});
-    }
-  }
+// checkpoints
+let checkpoints=[
+  {x:1000,y:430,w:20,h:30},{x:2500,y:430,w:20,h:30},{x:4000,y:430,w:20,h:30},{x:5500,y:430,w:20,h:30},
+  {x:7000,y:430,w:20,h:30},{x:8500,y:430,w:20,h:30},{x:10000,y:430,w:20,h:30},{x:11500,y:430,w:20,h:30}
+];
+
+// platforms
+let plats=[{x:0,y:460,w:worldWidth,h:20}];
+for(let i=200;i<worldWidth-200;i+=250){
+  plats.push({x:i,y:400-Math.random()*250,w:60+Math.random()*40,h:10});
 }
 
-// ---------------- GAME LOOP ----------------
-function update(){
-  // physics
-  player.vy+=0.35;
-  if(keys.left) player.vx=-3; else if(keys.right) player.vx=3; else player.vx=0;
+// spikes
+let spikes=[];
+for(let i=350;i<worldWidth-200;i+=300){
+  spikes.push({x:i,y:440,w:40,h:20});
+}
 
-  if(keys.jump && player.onGround && !player.jumping){
-    player.vy=-9.5; player.onGround=false; player.jumping=true;
-  }
-  if(!keys.jump && player.jumping && player.vy<-3){
-    player.vy=-3; player.jumping=false;
-  }
-  if(!keys.jump && player.onGround){ player.jumping=false; }
+// enemies
+let enemies=[];
+function randomEnemy(x){
+  let type=Math.floor(Math.random()*6)+3; // types 3-8
+  let baseY=420;
+  let dir=Math.random()<0.5?-1:1;
+  return {x:x,y:baseY,w:20,h:20,dir:dir,min:x-50,max:x+150,type:type,vy:0,baseY:baseY,onGround:true,lastTeleport:0,projectiles:[]};
+}
+for(let i=600;i<worldWidth-200;i+=500){
+  enemies.push(randomEnemy(i));
+}
+
+// projectiles array
+let projectiles=[];
+
+function rect(a,b){return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h)}
+
+// update
+function update(){
+  // gravity
+  player.vy+=0.45;
+  if(keys.left) player.vx=-3.5; else if(keys.right) player.vx=3.5; else player.vx=0;
+
+  // jump
+  if(keys.jump && player.onGround && !player.jumping){player.vy=-10; player.onGround=false; player.jumping=true;}
+  if(!keys.jump && player.jumping && player.vy<-4){player.vy=-4; player.jumping=false;}
+  if(!keys.jump && player.onGround) player.jumping=false;
 
   player.x+=player.vx; player.y+=player.vy;
   player.onGround=false;
 
-  // platform collision
-  for(let p of plats.concat(movers)){
+  // platforms
+  for(let p of plats){
     if(rect(player,p)){
-      if(player.vy>0){player.y=p.y-player.h; player.vy=0; player.onGround=true;}
+      if(player.vy>0){player.y=p.y-player.h;player.vy=0;player.onGround=true;}
     }
   }
 
-  // movers move
-  movers.forEach(m=>{
-    m.x+=m.dir*2;
-    if(m.x<m.min||m.x>m.max) m.dir*=-1;
-    // carry player if standing
-    if(rect(player,{x:m.x,y:m.y-1,w:m.w,h:2})){ player.x+=m.dir*2; }
-  });
-
   // spikes
   for(let s of spikes){ if(rect(player,s)) reset(); }
+
   // enemies
   for(let e of enemies){
-    if(e.type===0){ e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
-    else if(e.type===1){ if(e.onGround){ e.vy=-8; e.onGround=false; } e.vy+=0.5; e.y+=e.vy; if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; } }
-    else if(e.type===2){ e.y=e.baseY+Math.sin(Date.now()/400)*40; e.x+=1.5*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
+    switch(e.type){
+      case 3: // Chaser
+        if(Math.abs(player.x-e.x)<400){ e.dir = player.x>e.x?1:-1; e.x += 3*e.dir; }
+        break;
+      case 4: // Patroller with stops
+        if(!e.pause && Math.random()<0.01) e.pause=60;
+        if(e.pause){ e.pause--; } else { e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
+        break;
+      case 5: // Bouncer
+        if(e.onGround && Math.random()<0.02){ e.vy=-12; e.onGround=false; } e.vy+=0.5; e.y+=e.vy;
+        if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; }
+        break;
+      case 6: // Flying sinusoidal
+        e.y=e.baseY+Math.sin(Date.now()/300+e.x/50)*60; e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; break;
+      case 7: // Teleporter
+        if(Date.now()-e.lastTeleport>2000){ e.x = e.min+Math.random()*(e.max-e.min); e.lastTeleport=Date.now(); }
+        break;
+      case 8: // Projectile shooter
+        if(Date.now()%90===0){ projectiles.push({x:e.x+10,y:e.y+10,vx:(player.x-e.x)/50,vy:-5,w:5,h:5}); }
+        break;
+    }
     if(rect(player,e)) reset();
   }
 
+  // projectiles
+  for(let p of projectiles){ p.x+=p.vx; p.y+=p.vy; if(rect(player,p)) reset(); }
+
   // checkpoints
   for(let c of checkpoints){ if(rect(player,c)) player.checkpoint={x:c.x,y:c.y-10}; }
-  // fall death
+
   if(player.y>worldHeight) reset();
-  // win
-  if(rect(player,goal)) levelComplete();
+  if(rect(player,goal)) win();
 }
 
+// draw
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.save(); ctx.translate(-cameraX,0);
+  ctx.save();
+  ctx.translate(-cameraX,0);
 
+  // goal
   ctx.fillStyle="#ffc0cb"; ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
-  ctx.fillStyle="#add8e6"; plats.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
-  ctx.fillStyle="#ff6666"; spikes.forEach(s=>ctx.fillRect(s.x,s.y,s.w,s.h));
-  movers.forEach(m=>{ctx.fillStyle="#20b2aa"; ctx.fillRect(m.x,m.y,m.w,m.h);});
-  enemies.forEach(e=>{ ctx.fillStyle=(e.type===0?'#9370db':e.type===1?'#32cd32':'#ffa500'); ctx.fillRect(e.x,e.y,e.w,e.h); });
-  ctx.fillStyle="#ffd700"; checkpoints.forEach(c=>ctx.fillRect(c.x,c.y,c.w,c.h));
+
+  // platforms
+  ctx.fillStyle="#add8e6"; plats.forEach(p=>{if(p.x+p.w>cameraX && p.x<cameraX+canvas.width) ctx.fillRect(p.x,p.y,p.w,p.h);});
+
+  // spikes
+  ctx.fillStyle="#ff6666"; spikes.forEach(s=>{if(s.x+s.w>cameraX && s.x<cameraX+canvas.width) ctx.fillRect(s.x,s.y,s.w,s.h);});
+
+  // enemies
+  enemies.forEach(e=>{
+    if(e.x+e.w>cameraX && e.x<cameraX+canvas.width){
+      switch(e.type){
+        case 3: ctx.fillStyle="#800080"; break; // Chaser
+        case 4: ctx.fillStyle="#008000"; break; // Patroller
+        case 5: ctx.fillStyle="#00CED1"; break; // Bouncer
+        case 6: ctx.fillStyle="#FFA500"; break; // Flying
+        case 7: ctx.fillStyle="#FF1493"; break; // Teleporter
+        case 8: ctx.fillStyle="#8B0000"; break; // Shooter
+      }
+      ctx.fillRect(e.x,e.y,e.w,e.h);
+    }
+  });
+
+  // projectiles
+  ctx.fillStyle="#000"; projectiles.forEach(p=>{ if(p.x+p.w>cameraX && p.x<cameraX+canvas.width) ctx.fillRect(p.x,p.y,p.w,p.h); });
+
+  // checkpoints
+  ctx.fillStyle="#ffd700"; checkpoints.forEach(c=>{if(c.x+c.w>cameraX && c.x<cameraX+canvas.width) ctx.fillRect(c.x,c.y,c.w,c.h);});
+
+  // player
   ctx.fillStyle="#ff69b4"; ctx.fillRect(player.x,player.y,player.w,player.h);
 
   ctx.restore();
 }
 
-function loop(){
-  update();
-  cameraX=Math.max(0,Math.min(player.x-200,worldWidth-canvas.width));
-  draw();
-  requestAnimationFrame(loop);
-}
+let cameraX=0;
+function loop(){ update(); cameraX=Math.max(0,Math.min(player.x-200,worldWidth-canvas.width)); draw(); requestAnimationFrame(loop); }
 loop();
 
-// ---------------- HELPERS ----------------
-function reset(){ player.x=player.checkpoint.x; player.y=player.checkpoint.y; player.vx=player.vy=0; }
-function levelComplete(){
-  if(currentLevel===1){
-    unlockedLevels=2;
-    document.getElementById("lvl2").disabled=false;
-    backToMenu();
-  } else {
-    document.getElementById("win").style.display="flex";
-  }
-}
-function backToMenu(){
-  document.getElementById("win").style.display="none";
-  document.getElementById("menu").style.display="flex";
-}
+function reset(){player.x=player.checkpoint.x;player.y=player.checkpoint.y;player.vx=player.vy=0;}
+function win(){document.getElementById("win").style.display="flex";}
+function restart(){document.getElementById("win").style.display="none"; player.checkpoint={x:20,y:420}; reset();}
 
-// ---------------- CONTROLS ----------------
-window.addEventListener("keydown",e=>{ if(e.key==="ArrowLeft")keys.left=true; if(e.key==="ArrowRight")keys.right=true; if(e.key==="ArrowUp")keys.jump=true; });
-window.addEventListener("keyup",e=>{ if(e.key==="ArrowLeft")keys.left=false; if(e.key==="ArrowRight")keys.right=false; if(e.key==="ArrowUp")keys.jump=false; });
+// keyboard controls
+window.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")keys.left=true;if(e.key==="ArrowRight")keys.right=true;if(e.key==="ArrowUp")keys.jump=true;});
+window.addEventListener("keyup",e=>{if(e.key==="ArrowLeft")keys.left=false;if(e.key==="ArrowRight")keys.right=false;if(e.key==="ArrowUp")keys.jump=false;});
+
+// touch controls
 function bind(btn,prop){
   btn.addEventListener("touchstart",e=>{e.preventDefault();keys[prop]=true;},{passive:false});
   btn.addEventListener("touchend",e=>{e.preventDefault();keys[prop]=false;},{passive:false});
@@ -202,16 +212,10 @@ function bind(btn,prop){
 bind(document.getElementById("left"),"left");
 bind(document.getElementById("right"),"right");
 bind(document.getElementById("jump"),"jump");
-
-// ---------------- MENU BUTTONS ----------------
-document.getElementById("lvl1").onclick=()=>loadLevel(1);
-document.getElementById("lvl2").onclick=()=>{if(unlockedLevels>=2) loadLevel(2);};
-
-// Start at menu
-document.getElementById("menu").style.display="flex";
 </script>
 </body>
 </html>
+
 
 
 
