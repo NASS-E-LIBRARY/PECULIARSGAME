@@ -1,174 +1,232 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Peculiar's Extended Adventure 💖</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+  <title>Peculiar’s 10-Level Adventure 💖</title>
   <style>
     body { margin:0; background:#ffe6f0; overflow:hidden; }
     #gameWrap { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; }
-    canvas { background:linear-gradient(#b3e5fc, #fff); border:4px solid #ff99cc; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
+    canvas { background:linear-gradient(#b3e5fc, #fff); border:4px solid #ff99cc; border-radius:20px;
+             box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
     #controls { position:fixed; bottom:20px; left:0; right:0; display:flex; justify-content:space-around; z-index:10; }
     button { width:80px; height:80px; border-radius:50%; border:none; background:#fff0f5; font-size:26px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
-    #win { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); color:#fff; font-family:sans-serif; justify-content:center; align-items:center; flex-direction:column; z-index:20; padding:20px; text-align:center; }
+    #win { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); color:#fff; font-family:sans-serif;
+           justify-content:center; align-items:center; flex-direction:column; z-index:20; padding:20px; text-align:center; }
     #win h1 { background:#ff99cc; padding:20px; border-radius:20px; max-width:90%; }
     #win p { font-size:18px; margin-top:20px; max-width:90%; }
   </style>
 </head>
 <body>
-  <div id="gameWrap"><canvas id="game" width="800" height="480"></canvas></div>
-  <div id="controls">
-    <button id="left">◀</button>
-    <button id="jump">⟰</button>
-    <button id="right">▶</button>
-  </div>
-  <div id="win">
-    <h1>Congrats Peculiar 💖</h1>
-    <p>You beat the big adventure!</p>
-    <p><strong>Don't tell Peculiar, but Leczy kinda likes her 💕</strong></p>
-    <button onclick="restart()">Play Again</button>
-  </div>
+<div id="gameWrap"><canvas id="game" width="800" height="480"></canvas></div>
+<div id="controls">
+  <button id="left">◀</button>
+  <button id="jump">⟰</button>
+  <button id="right">▶</button>
+</div>
+<div id="win">
+  <h1>Congrats Peculiar 💖</h1>
+  <p id="message"></p>
+  <button onclick="restart()">Play Again</button>
+</div>
+
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 let keys={left:false,right:false,jump:false};
-
-// Scale canvas to full width on mobile
 function resizeCanvas(){
-  const maxW=window.innerWidth;
-  const maxH=window.innerHeight-120;
+  const maxW=window.innerWidth, maxH=window.innerHeight-120;
   const scale=Math.min(maxW/canvas.width,maxH/canvas.height);
   canvas.style.width=canvas.width*scale+"px";
   canvas.style.height=canvas.height*scale+"px";
 }
-window.addEventListener("resize",resizeCanvas);
-resizeCanvas();
+window.addEventListener("resize",resizeCanvas); resizeCanvas();
 
-// player
-let player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,checkpoint:{x:20,y:420},jumping:false};
-// world settings
-const worldWidth=6000;
-const worldHeight=480;
-// goal
-let goal={x:5950,y:420,w:30,h:30};
-// checkpoints
-let checkpoints=[{x:1000,y:430,w:20,h:30},{x:3000,y:430,w:20,h:30},{x:5000,y:430,w:20,h:30}];
-// platforms
-let plats=[{x:0,y:460,w:worldWidth,h:20}];
-for(let i=200;i<5800;i+=300){
-  plats.push({x:i,y:400-Math.random()*200,w:100,h:10});
-}
-// spikes
-let spikes=[];
-for(let i=400;i<5800;i+=400){
-  spikes.push({x:i,y:440,w:40,h:20});
-}
-// enemies
-let enemies=[];
-for(let i=600;i<5800;i+=600){
-  let type=Math.floor(Math.random()*3);
-  enemies.push({x:i,y:420,w:20,h:20,dir:Math.random()<0.5?-1:1,min:i-50,max:i+150,type:type,vy:0,baseY:420,onGround:true});
+// ==== PLAYER ====
+let player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,jumping:false,doubleJump:false,canDouble:false,shield:false,speed:3,checkpoint:{x:20,y:420},lives:3,glow:false,swim:false};
+let cameraX=0;
+
+// ==== LEVEL DATA ====
+let currentLevel=1;
+let goal,plats,spikes,enemies,movers,falls,bouncies,chasers,shooters,rings,darks,wats,checkpoints,collectibles;
+
+function loadLevel(n){
+  currentLevel=n;
+  player.x=20; player.y=420; player.vx=player.vy=0; player.checkpoint={x:20,y:420};
+  plats=[{x:0,y:460,w:2000,h:20}];
+  spikes=[]; enemies=[]; movers=[]; falls=[]; bouncies=[]; chasers=[]; shooters=[]; rings=[]; darks=[]; wats=[]; checkpoints=[];
+  collectibles=[];
+  goal={x:1800,y:420,w:30,h:30};
+
+  // Base design
+  plats.push({x:200,y:400,w:100,h:10});
+  plats.push({x:400,y:350,w:100,h:10});
+  plats.push({x:600,y:300,w:100,h:10});
+  spikes.push({x:500,y:440,w:40,h:20});
+  checkpoints.push({x:1000,y:430,w:20,h:30});
+
+  // Add new stuff depending on level
+  if(n>=2){ // jumpers + moving platforms
+    enemies.push({type:"jumper",x:800,y:420,w:20,h:20,vy:0,baseY:420,onGround:true});
+    movers.push({x:1200,y:300,w:100,h:10,min:1100,max:1300,dir:1});
+  }
+  if(n>=3){ // flyers + falling platforms
+    enemies.push({type:"flyer",x:600,y:200,w:20,h:20,dir:1,min:600,max:800});
+    falls.push({x:1400,y:250,w:100,h:10,falling:false});
+    player.canDouble=true;
+  }
+  if(n>=4){ // bouncy + chaser
+    bouncies.push({x:1600,y:400,w:100,h:10});
+    chasers.push({x:1300,y:420,w:20,h:20});
+    player.shield=true;
+  }
+  if(n>=5){ // hearts + wind zones
+    collectibles.push({x:900,y:300,w:20,h:20,type:"heart"});
+    // wind zone simulated as horizontal push
+    rings.push({x:1500,y:420,w:20,h:60,type:"wind"});
+  }
+  if(n>=6){ // ice + shooter
+    plats.push({x:1700,y:350,w:100,h:10,ice:true});
+    shooters.push({x:1800,y:420,w:20,h:20,dir:1,bullets:[]});
+    player.speed=4;
+  }
+  if(n>=7){ // boost rings + miniboss
+    rings.push({x:1900,y:420,w:20,h:60,type:"boost"});
+    enemies.push({type:"boss",x:1700,y:380,w:40,h:40,dir:1,min:1600,max:1900});
+  }
+  if(n>=8){ // dark section + disappearing platforms
+    darks.push({x:1400,y:0,w:600,h:480});
+    plats.push({x:1500,y:280,w:100,h:10,disappear:true,visible:true,timer:0});
+    player.glow=true;
+  }
+  if(n>=9){ // water + shield enemy
+    wats.push({x:1300,y:440,w:200,h:40});
+    enemies.push({type:"shield",x:1100,y:420,w:20,h:20,dir:1,min:1050,max:1250});
+    player.swim=true;
+  }
+  if(n>=10){
+    goal={x:1900,y:420,w:30,h:30};
+    enemies.push({type:"boss",x:1000,y:380,w:60,h:60,dir:1,min:900,max:1200});
+  }
 }
 
+// ==== GAME LOOP ====
 function rect(a,b){return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h)}
 
 function update(){
-  // smoother gravity
-  player.vy+=0.35;
-  if(keys.left) player.vx=-3; else if(keys.right) player.vx=3; else player.vx=0;
+  // physics
+  player.vy+=0.4;
+  if(keys.left) player.vx=-player.speed; else if(keys.right) player.vx=player.speed; else player.vx=0;
 
-  // variable jump height
-  if(keys.jump && player.onGround && !player.jumping){
-    player.vy=-9.5;
-    player.onGround=false;
-    player.jumping=true;
-  }
-  if(!keys.jump && player.jumping && player.vy < -3){
-    player.vy=-3;
-    player.jumping=false;
-  }
-  if(!keys.jump && player.onGround){
-    player.jumping=false;
-  }
-
+  if(keys.jump){
+    if(player.onGround&&!player.jumping){player.vy=-9;player.onGround=false;player.jumping=true;}
+    else if(player.canDouble&&!player.doubleJump&&!player.onGround){player.vy=-8;player.doubleJump=true;}
+  } else {player.jumping=false;}
   player.x+=player.vx; player.y+=player.vy;
   player.onGround=false;
+
+  // collisions with platforms
   for(let p of plats){
     if(rect(player,p)){
-      if(player.vy>0){player.y=p.y-player.h;player.vy=0;player.onGround=true;}
+      if(player.vy>0){player.y=p.y-player.h;player.vy=0;player.onGround=true;player.doubleJump=false;}
     }
   }
-  for(let s of spikes){ if(rect(player,s)) reset(); }
-  for(let e of enemies){
-    if(e.type===0){ e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
-    else if(e.type===1){ if(e.onGround){ e.vy=-8; e.onGround=false; } e.vy+=0.5; e.y+=e.vy; if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; } }
-    else if(e.type===2){ e.y=e.baseY+Math.sin(Date.now()/400)*40; e.x+=1.5*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
-    if(rect(player,e)) reset();
+  // moving platforms
+  for(let m of movers){
+    m.x+=2*m.dir; if(m.x<m.min||m.x>m.max)m.dir*=-1;
+    if(rect(player,m)){player.y=m.y-player.h;player.vy=0;player.onGround=true;}
   }
-  for(let c of checkpoints){ if(rect(player,c)) player.checkpoint={x:c.x,y:c.y-10}; }
-  if(player.y>worldHeight) reset();
-  if(rect(player,goal)) win();
+  // falling platforms
+  for(let f of falls){
+    if(rect(player,f)&&!f.falling){f.falling=true;}
+    if(f.falling)f.y+=3;
+  }
+  // bouncy
+  for(let b of bouncies){
+    if(rect(player,b)){player.vy=-12;}
+  }
+  // ice
+  for(let p of plats){if(p.ice&&rect(player,p)){player.vx*=1.5;}}
+  // disappearing
+  for(let p of plats){if(p.disappear&&rect(player,p)){p.timer++;if(p.timer>60)p.visible=false;}}
+
+  // spikes
+  for(let s of spikes){if(rect(player,s))reset();}
+  // water
+  for(let w of wats){if(rect(player,w)){player.vy*=0.5;}}
+
+  // enemies
+  for(let e of enemies){
+    if(e.type=="jumper"){ if(e.onGround){e.vy=-8;e.onGround=false;} e.vy+=0.5;e.y+=e.vy;if(e.y>=e.baseY){e.y=e.baseY;e.vy=0;e.onGround=true;} }
+    if(e.type=="flyer"){e.x+=2*e.dir; if(e.x<e.min||e.x>e.max)e.dir*=-1; e.y=200+Math.sin(Date.now()/400)*30;}
+    if(e.type=="boss"||e.type=="shield"){e.x+=2*e.dir; if(e.x<e.min||e.x>e.max)e.dir*=-1;}
+    if(e.type=="chaser"){if(player.x<e.x)e.x-=1;else e.x+=1;}
+    if(rect(player,e)){if(player.shield){player.shield=false;}else reset();}}
+  // shooters
+  for(let s of shooters){s.x+=s.dir;if(s.x<1700||s.x>1900)s.dir*=-1;if(Math.random()<0.01){s.bullets.push({x:s.x,y:s.y,w:10,h:10,dir:s.dir});}}
+  for(let s of shooters){for(let b of s.bullets){b.x+=5*b.dir;if(rect(player,b))reset();}}
+
+  // rings
+  for(let r of rings){if(rect(player,r)){if(r.type=="boost"){player.vx+=10;} if(r.type=="wind"){player.x+=2;}}}
+
+  // hearts
+  for(let c of collectibles){if(rect(player,c)&&c.type=="heart"){player.lives++;}}
+
+  // checkpoints
+  for(let c of checkpoints){if(rect(player,c))player.checkpoint={x:c.x,y:c.y-10};}
+
+  if(player.y>480)reset();
+
+  if(rect(player,goal)){nextLevel();}
 }
 
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save(); ctx.translate(-cameraX,0);
 
-  ctx.save();
-  ctx.translate(-cameraX,0);
+  // dark areas
+  for(let d of darks){ctx.fillStyle="rgba(0,0,0,0.7)";ctx.fillRect(d.x,d.y,d.w,d.h);}
+  if(player.glow){ctx.beginPath();ctx.arc(player.x+10,player.y+10,80,0,Math.PI*2);ctx.fillStyle="rgba(255,255,200,0.5)";ctx.fill();}
 
-  // goal
-  ctx.fillStyle="#ffc0cb"; ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
-  // platforms
-  ctx.fillStyle="#add8e6"; plats.forEach(p=>{if(p.x+p.w>cameraX && p.x<cameraX+canvas.width) ctx.fillRect(p.x,p.y,p.w,p.h);});
-  // spikes
-  ctx.fillStyle="#ff6666"; spikes.forEach(s=>{if(s.x+s.w>cameraX && s.x<cameraX+canvas.width) ctx.fillRect(s.x,s.y,s.w,s.h);});
-  // enemies
-  enemies.forEach(e=>{
-    if(e.x+e.w>cameraX && e.x<cameraX+canvas.width){
-      if(e.type===0){ ctx.fillStyle="#9370db"; }
-      else if(e.type===1){ ctx.fillStyle="#32cd32"; }
-      else { ctx.fillStyle="#ffa500"; }
-      ctx.fillRect(e.x,e.y,e.w,e.h);
-    }
-  });
-  // checkpoints
-  ctx.fillStyle="#ffd700"; checkpoints.forEach(c=>{if(c.x+c.w>cameraX && c.x<cameraX+canvas.width) ctx.fillRect(c.x,c.y,c.w,c.h);});
-  // player
+  ctx.fillStyle="#add8e6"; for(let p of plats){if(p.visible!==false)ctx.fillRect(p.x,p.y,p.w,p.h);}
+  ctx.fillStyle="#ff6666"; for(let s of spikes){ctx.fillRect(s.x,s.y,s.w,s.h);}
+  ctx.fillStyle="#ffd700"; for(let c of checkpoints){ctx.fillRect(c.x,c.y,c.w,c.h);}
+  ctx.fillStyle="#00ffff"; for(let w of wats){ctx.fillRect(w.x,w.y,w.w,w.h);}
+  ctx.fillStyle="#ff0"; for(let r of rings){ctx.fillRect(r.x,r.y,r.w,r.h);}
+  ctx.fillStyle="#0f0"; for(let c of collectibles){ctx.fillRect(c.x,c.y,c.w,c.h);}
+
   ctx.fillStyle="#ff69b4"; ctx.fillRect(player.x,player.y,player.w,player.h);
+
+  enemies.forEach(e=>{ctx.fillStyle=(e.type=="jumper"?"#32cd32":e.type=="flyer"?"#ffa500":e.type=="boss"?"#800000":"#9370db");ctx.fillRect(e.x,e.y,e.w,e.h);});
+  shooters.forEach(s=>{ctx.fillStyle="#000";ctx.fillRect(s.x,s.y,s.w,s.h);s.bullets.forEach(b=>{ctx.fillRect(b.x,b.y,b.w,b.h);});});
+
+  movers.forEach(m=>{ctx.fillStyle="#888";ctx.fillRect(m.x,m.y,m.w,m.h);});
+  falls.forEach(f=>{ctx.fillStyle="#555";ctx.fillRect(f.x,f.y,f.w,f.h);});
+  bouncies.forEach(b=>{ctx.fillStyle="#0ff";ctx.fillRect(b.x,b.y,b.w,b.h);});
+
+  ctx.fillStyle="#ffc0cb"; ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
 
   ctx.restore();
 }
 
-let cameraX=0;
-function loop(){
-  update();
-  cameraX=Math.max(0,Math.min(player.x-200,worldWidth-canvas.width));
-  draw();
-  requestAnimationFrame(loop);
-}
-loop();
+function loop(){update();cameraX=Math.max(0,Math.min(player.x-200,2000));draw();requestAnimationFrame(loop);} loop();
 
 function reset(){player.x=player.checkpoint.x;player.y=player.checkpoint.y;player.vx=player.vy=0;}
-function win(){document.getElementById("win").style.display="flex";}
-function restart(){document.getElementById("win").style.display="none"; player.checkpoint={x:20,y:420}; reset();}
+function nextLevel(){if(currentLevel<10){loadLevel(currentLevel+1);}else{document.getElementById("win").style.display="flex";document.getElementById("message").innerText=\"Don't tell Peculiar, but Leczy kinda likes her 💕\";}}
+function restart(){document.getElementById("win").style.display="none";loadLevel(1);}
 
-// keyboard controls
-window.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")keys.left=true;if(e.key==="ArrowRight")keys.right=true;if(e.key==="ArrowUp")keys.jump=true;});
-window.addEventListener("keyup",e=>{if(e.key==="ArrowLeft")keys.left=false;if(e.key==="ArrowRight")keys.right=false;if(e.key==="ArrowUp")keys.jump=false;});
+// controls
+window.addEventListener("keydown",e=>{if(e.key=="ArrowLeft")keys.left=true;if(e.key=="ArrowRight")keys.right=true;if(e.key=="ArrowUp")keys.jump=true;});
+window.addEventListener("keyup",e=>{if(e.key=="ArrowLeft")keys.left=false;if(e.key=="ArrowRight")keys.right=false;if(e.key=="ArrowUp")keys.jump=false;});
+function bind(btn,prop){btn.addEventListener("touchstart",e=>{e.preventDefault();keys[prop]=true;},{passive:false});btn.addEventListener("touchend",e=>{e.preventDefault();keys[prop]=false;},{passive:false});btn.addEventListener("mousedown",()=>keys[prop]=true);btn.addEventListener("mouseup",()=>keys[prop]=false);}
+bind(document.getElementById("left"),"left"); bind(document.getElementById("right"),"right"); bind(document.getElementById("jump"),"jump");
 
-// touch controls
-function bind(btn,prop){
-  btn.addEventListener("touchstart",e=>{e.preventDefault();keys[prop]=true;},{passive:false});
-  btn.addEventListener("touchend",e=>{e.preventDefault();keys[prop]=false;},{passive:false});
-  btn.addEventListener("mousedown",()=>keys[prop]=true);
-  btn.addEventListener("mouseup",()=>keys[prop]=false);
-}
-bind(document.getElementById("left"),"left");
-bind(document.getElementById("right"),"right");
-bind(document.getElementById("jump"),"jump");
+// Start level 1
+loadLevel(1);
 </script>
 </body>
 </html>
+
 
 
 
