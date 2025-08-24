@@ -9,14 +9,14 @@
     #gameWrap { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; }
     canvas { background:linear-gradient(#b3e5fc, #fff); border:4px solid #ff99cc; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
     #controls { position:fixed; bottom:20px; left:0; right:0; display:flex; justify-content:space-around; z-index:10; }
-    button { width:60px; height:60px; border-radius:50%; border:none; background:#fff0f5; font-size:22px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
+    button { width:80px; height:80px; border-radius:50%; border:none; background:#fff0f5; font-size:26px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
     #win { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); color:#fff; font-family:sans-serif; justify-content:center; align-items:center; flex-direction:column; z-index:20; padding:20px; text-align:center; }
     #win h1 { background:#ff99cc; padding:20px; border-radius:20px; max-width:90%; }
     #win p { font-size:18px; margin-top:20px; max-width:90%; }
   </style>
 </head>
 <body>
-  <div id="gameWrap"><canvas id="game" width="6000" height="480"></canvas></div>
+  <div id="gameWrap"><canvas id="game" width="800" height="480"></canvas></div>
   <div id="controls">
     <button id="left">◀</button>
     <button id="jump">⟰</button>
@@ -33,6 +33,7 @@ const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 let keys={left:false,right:false,jump:false};
 
+// Scale canvas to full width on mobile
 function resizeCanvas(){
   const maxW=window.innerWidth;
   const maxH=window.innerHeight-120;
@@ -45,12 +46,15 @@ resizeCanvas();
 
 // player
 let player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,checkpoint:{x:20,y:420},jumping:false};
+// world settings
+const worldWidth=6000;
+const worldHeight=480;
 // goal
 let goal={x:5950,y:420,w:30,h:30};
 // checkpoints
 let checkpoints=[{x:1000,y:430,w:20,h:30},{x:3000,y:430,w:20,h:30},{x:5000,y:430,w:20,h:30}];
 // platforms
-let plats=[{x:0,y:460,w:6000,h:20}];
+let plats=[{x:0,y:460,w:worldWidth,h:20}];
 for(let i=200;i<5800;i+=300){
   plats.push({x:i,y:400-Math.random()*200,w:100,h:10});
 }
@@ -59,7 +63,7 @@ let spikes=[];
 for(let i=400;i<5800;i+=400){
   spikes.push({x:i,y:440,w:40,h:20});
 }
-// enemies (ground, jumping, flying)
+// enemies
 let enemies=[];
 for(let i=600;i<5800;i+=600){
   let type=Math.floor(Math.random()*3);
@@ -70,7 +74,7 @@ function rect(a,b){return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h)}
 
 function update(){
   // smoother gravity
-  player.vy+=0.35; 
+  player.vy+=0.35;
   if(keys.left) player.vx=-3; else if(keys.right) player.vx=3; else player.vx=0;
 
   // variable jump height
@@ -80,7 +84,7 @@ function update(){
     player.jumping=true;
   }
   if(!keys.jump && player.jumping && player.vy < -3){
-    player.vy=-3; // cut jump short if button released
+    player.vy=-3;
     player.jumping=false;
   }
   if(!keys.jump && player.onGround){
@@ -96,47 +100,39 @@ function update(){
   }
   for(let s of spikes){ if(rect(player,s)) reset(); }
   for(let e of enemies){
-    if(e.type===0){ // ground walker
-      e.x+=2*e.dir;
-      if(e.x<e.min||e.x>e.max) e.dir*=-1;
-    } else if(e.type===1){ // jumper
-      if(e.onGround){ e.vy=-8; e.onGround=false; }
-      e.vy+=0.5;
-      e.y+=e.vy;
-      if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; }
-    } else if(e.type===2){ // flyer
-      e.y=e.baseY+Math.sin(Date.now()/400)*40;
-      e.x+=1.5*e.dir;
-      if(e.x<e.min||e.x>e.max) e.dir*=-1;
-    }
+    if(e.type===0){ e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
+    else if(e.type===1){ if(e.onGround){ e.vy=-8; e.onGround=false; } e.vy+=0.5; e.y+=e.vy; if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; } }
+    else if(e.type===2){ e.y=e.baseY+Math.sin(Date.now()/400)*40; e.x+=1.5*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
     if(rect(player,e)) reset();
   }
-  for(let c of checkpoints){
-    if(rect(player,c)) player.checkpoint={x:c.x,y:c.y-10};
-  }
-  if(player.y>canvas.height) reset();
+  for(let c of checkpoints){ if(rect(player,c)) player.checkpoint={x:c.x,y:c.y-10}; }
+  if(player.y>worldHeight) reset();
   if(rect(player,goal)) win();
 }
 
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.save(); ctx.translate(-cameraX,0);
+
+  ctx.save();
+  ctx.translate(-cameraX,0);
 
   // goal
   ctx.fillStyle="#ffc0cb"; ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
   // platforms
-  ctx.fillStyle="#add8e6"; plats.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
+  ctx.fillStyle="#add8e6"; plats.forEach(p=>{if(p.x+p.w>cameraX && p.x<cameraX+canvas.width) ctx.fillRect(p.x,p.y,p.w,p.h);});
   // spikes
-  ctx.fillStyle="#ff6666"; spikes.forEach(s=>ctx.fillRect(s.x,s.y,s.w,s.h));
+  ctx.fillStyle="#ff6666"; spikes.forEach(s=>{if(s.x+s.w>cameraX && s.x<cameraX+canvas.width) ctx.fillRect(s.x,s.y,s.w,s.h);});
   // enemies
   enemies.forEach(e=>{
-    if(e.type===0){ ctx.fillStyle="#9370db"; }
-    else if(e.type===1){ ctx.fillStyle="#32cd32"; }
-    else { ctx.fillStyle="#ffa500"; }
-    ctx.fillRect(e.x,e.y,e.w,e.h);
+    if(e.x+e.w>cameraX && e.x<cameraX+canvas.width){
+      if(e.type===0){ ctx.fillStyle="#9370db"; }
+      else if(e.type===1){ ctx.fillStyle="#32cd32"; }
+      else { ctx.fillStyle="#ffa500"; }
+      ctx.fillRect(e.x,e.y,e.w,e.h);
+    }
   });
   // checkpoints
-  ctx.fillStyle="#ffd700"; checkpoints.forEach(c=>ctx.fillRect(c.x,c.y,c.w,c.h));
+  ctx.fillStyle="#ffd700"; checkpoints.forEach(c=>{if(c.x+c.w>cameraX && c.x<cameraX+canvas.width) ctx.fillRect(c.x,c.y,c.w,c.h);});
   // player
   ctx.fillStyle="#ff69b4"; ctx.fillRect(player.x,player.y,player.w,player.h);
 
@@ -144,7 +140,13 @@ function draw(){
 }
 
 let cameraX=0;
-function loop(){update();cameraX=Math.max(0,player.x-200);draw();requestAnimationFrame(loop);}loop();
+function loop(){
+  update();
+  cameraX=Math.max(0,Math.min(player.x-200,worldWidth-canvas.width));
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
 
 function reset(){player.x=player.checkpoint.x;player.y=player.checkpoint.y;player.vx=player.vy=0;}
 function win(){document.getElementById("win").style.display="flex";}
@@ -167,5 +169,6 @@ bind(document.getElementById("jump"),"jump");
 </script>
 </body>
 </html>
+
 
 
