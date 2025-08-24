@@ -3,325 +3,216 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Peculiar’s 10‑Level Adventure 💖</title>
+  <title>Peculiar's Adventure 💖</title>
   <style>
-    :root { --ui:#ff99cc; --bg:#ffe6f0; }
-    *{box-sizing:border-box}
-    body { margin:0; background:var(--bg); overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+    body { margin:0; background:#ffe6f0; overflow:hidden; }
     #gameWrap { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; }
-    canvas { background:linear-gradient(#b3e5fc,#ffffff); border:4px solid var(--ui); border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
-
-    /* HUD */
-    #hud { position:fixed; top:10px; left:10px; right:10px; display:flex; justify-content:space-between; align-items:center; z-index:30; gap:8px; }
-    .chip { background:#fff; border:2px solid var(--ui); padding:6px 12px; border-radius:999px; font-weight:700; box-shadow:0 2px 6px rgba(0,0,0,.12); }
-    #menuBtn { border-radius:12px; padding:8px 12px; border:2px solid var(--ui); background:#fff; font-weight:800; }
-
-    /* Touch controls */
-    #controls { position:fixed; bottom:16px; left:0; right:0; display:flex; justify-content:space-around; z-index:25; padding:0 8px; }
-    .ctrl { width:88px; height:88px; border-radius:50%; border:none; background:#fff0f5; font-size:30px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
-
-    /* Level Select */
-    #menu { position:fixed; inset:0; background:rgba(0,0,0,.85); color:#fff; display:none; align-items:center; justify-content:center; z-index:40; padding:16px; }
-    #menu .panel { background:#1f1f1f; padding:18px; border-radius:16px; width:min(560px,92vw); box-shadow:0 10px 30px rgba(0,0,0,.6); }
-    #menu h2 { margin:0 0 14px; }
-    #levels { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
-    #levels button { padding:12px 0; border-radius:10px; border:2px solid #3a3a3a; background:#2a2a2a; color:#fff; font-weight:800; }
-    #levels button.unlocked { border-color:#6ee7b7; background:#184b3a; }
-    #levels button.locked { opacity:.5; }
-    #closeMenu { margin-top:14px; width:100%; padding:10px; border-radius:10px; background:#fff; color:#111; border:none; font-weight:800; }
-
-    /* Win Screen */
-    #win { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); color:#fff; justify-content:center; align-items:center; flex-direction:column; z-index:50; padding:20px; text-align:center; }
-    #win h1 { background:var(--ui); padding:18px 20px; border-radius:16px; max-width:90%; }
-    #win p { font-size:18px; margin-top:16px; max-width:90%; }
+    canvas { background:linear-gradient(#b3e5fc,#fff); border:4px solid #ff99cc; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
+    #controls { position:fixed; bottom:20px; left:0; right:0; display:flex; justify-content:space-around; z-index:10; }
+    button { width:80px; height:80px; border-radius:50%; border:none; background:#fff0f5; font-size:26px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
+    #menu, #win { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; justify-content:center; align-items:center; flex-direction:column; z-index:20; color:#fff; font-family:sans-serif; }
+    #menu h1 { margin-bottom:20px; }
+    #menu button { width:auto; height:auto; border-radius:12px; padding:10px 20px; margin:8px; }
+    #win h1 { background:#ff99cc; padding:20px; border-radius:20px; max-width:90%; }
+    #win p { font-size:18px; margin-top:20px; max-width:90%; text-align:center; }
   </style>
 </head>
 <body>
   <div id="gameWrap"><canvas id="game" width="800" height="480"></canvas></div>
-
-  <div id="hud">
-    <div class="chip" id="levelChip">Level 1</div>
-    <div class="chip" id="livesChip">❤️❤️❤️</div>
-    <button id="menuBtn">☰ Levels</button>
-  </div>
-
   <div id="controls">
-    <button class="ctrl" id="left">◀</button>
-    <button class="ctrl" id="jump">⟰</button>
-    <button class="ctrl" id="right">▶</button>
+    <button id="left">◀</button>
+    <button id="jump">⟰</button>
+    <button id="right">▶</button>
   </div>
 
+  <!-- Level Select Menu -->
   <div id="menu">
-    <div class="panel">
-      <h2>Select Level</h2>
-      <div id="levels"></div>
-      <button id="closeMenu">Back to Game</button>
-    </div>
+    <h1>Select Level</h1>
+    <button id="lvl1">Level 1</button>
+    <button id="lvl2" disabled>Level 2 (Locked)</button>
   </div>
 
+  <!-- Win Screen -->
   <div id="win">
     <h1>Congrats Peculiar 💖</h1>
-    <p id="message">Don't tell Peculiar, but Leczy kinda likes her 💕</p>
-    <button onclick="restartAll()">Play Again</button>
+    <p><strong>Don't tell Peculiar, but Leczy kinda likes her 💕</strong></p>
+    <button onclick="backToMenu()">Back to Level Select</button>
   </div>
 
 <script>
-// ===== Setup (iPhone-friendly scaling) =====
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-let keys = {left:false,right:false,jump:false};
-let paused = false;
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+let keys={left:false,right:false,jump:false};
+
+let currentLevel=1;
+let unlockedLevels=1;
+
+let player,plats,spikes,enemies,goal,checkpoints,movers;
+const worldHeight=480;
+let worldWidth=6000;
+let cameraX=0;
 
 function resizeCanvas(){
-  const maxW = window.innerWidth, maxH = window.innerHeight - 120;
-  const scale = Math.min(maxW/canvas.width, maxH/canvas.height);
-  canvas.style.width = (canvas.width*scale) + 'px';
-  canvas.style.height = (canvas.height*scale) + 'px';
+  const maxW=window.innerWidth;
+  const maxH=window.innerHeight-120;
+  const scale=Math.min(maxW/canvas.width,maxH/canvas.height);
+  canvas.style.width=canvas.width*scale+"px";
+  canvas.style.height=canvas.height*scale+"px";
 }
-window.addEventListener('resize', resizeCanvas); resizeCanvas();
+window.addEventListener("resize",resizeCanvas);
+resizeCanvas();
 
-// ===== Player / World State =====
-let player = {
-  x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,
-  jumping:false,doubleJump:false,canDouble:false,
-  shield:false,speed:3,checkpoint:{x:20,y:420},
-  lives:3,glow:false,swim:false
-};
-let cameraX = 0, worldWidth = 2000;
-let furthestUnlocked = 1; // Level select lock
+function rect(a,b){return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h)}
 
-// world objects
-let goal, plats, spikes, enemies, movers, falls, bouncies, shooters, rings, darks, waters, checkpoints, collectibles, projectiles;
-
-// ===== Helpers =====
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const rect=(A,B)=>!(A.x+A.w<B.x||A.x>B.x+B.w||A.y+A.h<B.y||A.y>B.y+B.h);
-const onScreen=(x,w=0)=> x+w>cameraX-64 && x<cameraX+canvas.width+64;
-
-// ===== Level Builder =====
-let currentLevel = 1;
-function baseLayout(){
-  plats=[{x:0,y:460,w:worldWidth,h:20}];
-  spikes=[]; enemies=[]; movers=[]; falls=[]; bouncies=[]; shooters=[]; rings=[]; darks=[]; waters=[]; checkpoints=[]; collectibles=[]; projectiles=[];
-  // simple steps
-  plats.push({x:200,y:400,w:110,h:10});
-  plats.push({x:420,y:350,w:110,h:10});
-  plats.push({x:650,y:300,w:110,h:10});
-  spikes.push({x:560,y:440,w:40,h:20});
-  checkpoints.push({x:1000,y:430,w:20,h:30});
-}
-
+// ---------------- LEVEL BUILDER ----------------
 function loadLevel(n){
-  currentLevel = n;
-  document.getElementById('levelChip').textContent = 'Level '+n;
-  player.x=20; player.y=420; player.vx=player.vy=0; player.onGround=false; player.jumping=false; player.doubleJump=false;
-  player.checkpoint={x:20,y:420}; player.lives=Math.max(3, player.lives); // keep at least 3
-  // progressive abilities
-  player.canDouble = n>=3; player.speed = n>=6?4:3; player.glow = n>=8; player.swim = n>=9;
+  currentLevel=n;
+  document.getElementById("menu").style.display="none";
+  player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,checkpoint:{x:20,y:420},jumping:false};
+  plats=[{x:0,y:460,w:10000,h:20}];
+  spikes=[]; enemies=[]; checkpoints=[]; movers=[];
 
-  // world scales gradually
-  worldWidth = 2000 + (n-1)*200;
-  baseLayout();
-  goal = {x: worldWidth-200, y:420, w:30, h:30};
+  if(n===1){
+    worldWidth=6000;
+    goal={x:5950,y:420,w:30,h:30};
+    checkpoints=[{x:1000,y:430,w:20,h:30},{x:3000,y:430,w:20,h:30},{x:5000,y:430,w:20,h:30}];
+    for(let i=200;i<5800;i+=300){ plats.push({x:i,y:400-Math.random()*200,w:100,h:10}); }
+    for(let i=400;i<5800;i+=400){ spikes.push({x:i,y:440,w:40,h:20}); }
+    for(let i=600;i<5800;i+=600){
+      let type=Math.floor(Math.random()*3);
+      enemies.push({x:i,y:420,w:20,h:20,dir:Math.random()<0.5?-1:1,min:i-50,max:i+150,type:type,vy:0,baseY:420,onGround:true});
+    }
+  }
 
-  // Two new dynamics per level
-  if(n>=2){ // Jumpers + Moving platform
-    enemies.push({type:'jumper',x:820,y:420,w:20,h:20,vy:0,baseY:420,onGround:true});
-    movers.push({x:1250,y:300,w:110,h:10,min:1150,max:1370,dir:1});
-  }
-  if(n>=3){ // Flyers + Falling platform (double jump unlocked)
-    enemies.push({type:'flyer',x:700,y:220,w:20,h:20,dir:1,min:650,max:850});
-    falls.push({x:1500,y:260,w:110,h:10,falling:false});
-  }
-  if(n>=4){ // Bouncy + Chaser (+ shield pickup)
-    bouncies.push({x:1650,y:400,w:110,h:10});
-    enemies.push({type:'chaser',x:1320,y:420,w:20,h:20});
-    collectibles.push({x:1200,y:340,w:18,h:18,type:'shield'});
-  }
-  if(n>=5){ // Heart + Wind zone
-    collectibles.push({x:980,y:310,w:18,h:18,type:'heart'});
-    rings.push({x:1550,y:420,w:22,h:60,type:'wind'});
-  }
-  if(n>=6){ // Ice + Shooter (speed boost already applied)
-    plats.push({x:1720,y:340,w:110,h:10,ice:true});
-    shooters.push({x:1820,y:420,w:20,h:20,dir:1,cool:0});
-  }
-  if(n>=7){ // Boost ring + Mini-boss
-    rings.push({x:worldWidth-450,y:420,w:22,h:60,type:'boost'});
-    enemies.push({type:'boss',x:worldWidth-700,y:380,w:44,h:44,dir:1,min:worldWidth-800,max:worldWidth-500});
-  }
-  if(n>=8){ // Dark section + Disappearing platform (glow active)
-    darks.push({x:worldWidth-800,y:0,w:600,h:480});
-    plats.push({x:worldWidth-520,y:280,w:110,h:10,disappear:true,visible:true,timer:0});
-  }
-  if(n>=9){ // Water + Shield enemy (swim active)
-    waters.push({x:worldWidth-1000,y:440,w:220,h:40});
-    enemies.push({type:'shield',x:worldWidth-1100,y:420,w:20,h:20,dir:1,min:worldWidth-1180,max:worldWidth-940});
-  }
-  if(n>=10){ // Final boss + extra moving
-    enemies.push({type:'boss',x:goal.x-650,y:360,w:60,h:60,dir:1,min:goal.x-760,max:goal.x-520});
-    movers.push({x:goal.x-520,y:320,w:110,h:10,min:goal.x-600,max:goal.x-430,dir:1});
-    rings.push({x:goal.x-300,y:420,w:22,h:60,type:'boost'});
+  if(n===2){
+    worldWidth=7000;
+    goal={x:6950,y:420,w:30,h:30};
+    checkpoints=[{x:1500,y:430,w:20,h:30},{x:3500,y:430,w:20,h:30},{x:5500,y:430,w:20,h:30}];
+    for(let i=200;i<6800;i+=250){ plats.push({x:i,y:380-Math.random()*250,w:120,h:10}); }
+    for(let i=400;i<6800;i+=300){ spikes.push({x:i,y:440,w:40,h:20}); }
+    for(let i=600;i<6800;i+=500){
+      let type=Math.floor(Math.random()*3);
+      enemies.push({x:i,y:420,w:20,h:20,dir:Math.random()<0.5?-1:1,min:i-100,max:i+200,type:type,vy:0,baseY:420,onGround:true});
+    }
+    // NEW mechanic: moving platforms
+    for(let i=1000;i<6800;i+=2000){
+      movers.push({x:i,y:300,w:100,h:15,dir:1,min:i-150,max:i+150});
+    }
   }
 }
 
-// ===== Game Update =====
+// ---------------- GAME LOOP ----------------
 function update(){
-  if(paused) return;
-  const gravity = 0.40;
-  player.vy += player.swim ? gravity*0.45 : gravity;
-  if(keys.left) player.vx = -player.speed; else if(keys.right) player.vx = player.speed; else player.vx = 0;
+  // physics
+  player.vy+=0.35;
+  if(keys.left) player.vx=-3; else if(keys.right) player.vx=3; else player.vx=0;
 
-  // Jump / Double Jump
-  if(keys.jump){
-    if(player.onGround && !player.jumping){ player.vy=-9.3; player.onGround=false; player.jumping=true; }
-    else if(player.canDouble && !player.doubleJump && !player.onGround){ player.vy=-8.4; player.doubleJump=true; }
-  } else { player.jumping=false; }
+  if(keys.jump && player.onGround && !player.jumping){
+    player.vy=-9.5; player.onGround=false; player.jumping=true;
+  }
+  if(!keys.jump && player.jumping && player.vy<-3){
+    player.vy=-3; player.jumping=false;
+  }
+  if(!keys.jump && player.onGround){ player.jumping=false; }
 
-  // integrate
-  player.x += player.vx; player.y += player.vy; player.onGround=false;
+  player.x+=player.vx; player.y+=player.vy;
+  player.onGround=false;
 
-  // collide with platforms
-  for(const p of plats){ if(p.visible===false) continue; if(rect(player,p) && player.vy>0){ player.y=p.y-player.h; player.vy=0; player.onGround=true; player.doubleJump=false; } }
-
-  // moving platforms
-  for(const m of movers){ m.x += 2*m.dir; if(m.x<m.min||m.x>m.max) m.dir*=-1; if(rect(player,m) && player.vy>=0){ player.y=m.y-player.h; player.vy=0; player.onGround=true; player.x += 0.5*m.dir; } }
-
-  // falling platforms
-  for(const f of falls){ if(!f.falling && rect(player,f)) f.falling=true; if(f.falling) f.y += 3; }
-
-  // bouncy
-  for(const b of bouncies){ if(rect(player,b) && player.vy>0){ player.vy=-12; player.onGround=false; } }
-
-  // ice
-  for(const p of plats){ if(p.ice && rect(player,p)) player.vx *= 1.35; }
-
-  // disappearing
-  for(const p of plats){ if(p.disappear && p.visible!==false && rect(player,p)){ p.timer++; if(p.timer>55) p.visible=false; } }
-
-  // hazards
-  for(const s of spikes){ if(onScreen(s.x,s.w) && rect(player,s)) hit(); }
-  for(const w of waters){ if(onScreen(w.x,w.w) && rect(player,w)){ player.vy *= 0.55; if(!player.swim && player.y > w.y-18) hit(); } }
-
-  // enemies
-  for(const e of enemies){
-    if(e.type==='jumper'){ if(e.onGround){ e.vy=-8; e.onGround=false; } e.vy += 0.5; e.y += e.vy; if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; } }
-    else if(e.type==='flyer'){ e.x += 2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; e.y = 200 + Math.sin(Date.now()/420)*30; }
-    else if(e.type==='chaser'){ if(player.x<e.x) e.x -= 1.2; else e.x += 1.2; }
-    else if(e.type==='boss' || e.type==='shield'){ e.x += 2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
-    if(onScreen(e.x,e.w) && rect(player,e)) { if(player.shield){ player.shield=false; } else hit(); }
+  // platform collision
+  for(let p of plats.concat(movers)){
+    if(rect(player,p)){
+      if(player.vy>0){player.y=p.y-player.h; player.vy=0; player.onGround=true;}
+    }
   }
 
-  // shooters & bullets
-  for(const s of shooters){ s.x += s.dir*0.6; if(s.x<goal.x-360||s.x>goal.x-60) s.dir*=-1; s.cool=(s.cool||0)-1; if(s.cool<=0){ projectiles.push({x:s.x,y:s.y,w:10,h:10,dir:(player.x>s.x?1:-1)}); s.cool=60; } }
-  for(const b of projectiles){ b.x += 5*b.dir; if(onScreen(b.x,b.w) && rect(player,b)) hit(); }
-  projectiles = projectiles.filter(b=> onScreen(b.x,b.w));
+  // movers move
+  movers.forEach(m=>{
+    m.x+=m.dir*2;
+    if(m.x<m.min||m.x>m.max) m.dir*=-1;
+    // carry player if standing
+    if(rect(player,{x:m.x,y:m.y-1,w:m.w,h:2})){ player.x+=m.dir*2; }
+  });
 
-  // rings
-  for(const r of rings){ if(onScreen(r.x,r.w) && rect(player,r)){ if(r.type==='boost') player.vx += 10; if(r.type==='wind') player.x += 2; } }
-
-  // collectibles
-  for(const c of collectibles){ if(c.taken) continue; if(onScreen(c.x,c.w) && rect(player,c)){ if(c.type==='heart') player.lives=Math.min(9,player.lives+1); if(c.type==='shield') player.shield=true; c.taken=true; } }
+  // spikes
+  for(let s of spikes){ if(rect(player,s)) reset(); }
+  // enemies
+  for(let e of enemies){
+    if(e.type===0){ e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
+    else if(e.type===1){ if(e.onGround){ e.vy=-8; e.onGround=false; } e.vy+=0.5; e.y+=e.vy; if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; } }
+    else if(e.type===2){ e.y=e.baseY+Math.sin(Date.now()/400)*40; e.x+=1.5*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
+    if(rect(player,e)) reset();
+  }
 
   // checkpoints
-  for(const c of checkpoints){ if(onScreen(c.x,c.w) && rect(player,c)) player.checkpoint={x:c.x,y:c.y-10}; }
-
-  // out of bounds
-  if(player.y>canvas.height+16) hit(true);
-
-  // goal
-  if(rect(player,goal)) nextLevel();
-
-  // camera & HUD
-  cameraX = clamp(player.x-200, 0, Math.max(0, worldWidth - canvas.width));
-  document.getElementById('livesChip').textContent = '❤️'.repeat(player.lives);
+  for(let c of checkpoints){ if(rect(player,c)) player.checkpoint={x:c.x,y:c.y-10}; }
+  // fall death
+  if(player.y>worldHeight) reset();
+  // win
+  if(rect(player,goal)) levelComplete();
 }
 
-function hit(fall=false){
-  if(player.shield){ player.shield=false; return; }
-  if(player.lives>1){ player.lives--; respawn(); }
-  else { player.lives=3; respawn(true); }
-}
-function respawn(resetAll=false){ const pt = resetAll?{x:20,y:420}:player.checkpoint; player.x=pt.x; player.y=pt.y; player.vx=player.vy=0; player.onGround=false; player.doubleJump=false; }
-
-// ===== Render =====
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.save(); ctx.translate(-cameraX,0);
 
-  // base platforms
-  ctx.fillStyle='#add8e6'; for(const p of plats){ if(p.visible===false) continue; if(onScreen(p.x,p.w)) ctx.fillRect(p.x,p.y,p.w,p.h); }
-  // specials
-  ctx.fillStyle='#888'; for(const m of movers){ if(onScreen(m.x,m.w)) ctx.fillRect(m.x,m.y,m.w,m.h); }
-  ctx.fillStyle='#555'; for(const f of falls){ if(onScreen(f.x,f.w)) ctx.fillRect(f.x,f.y,f.w,f.h); }
-  ctx.fillStyle='#0ff'; for(const b of bouncies){ if(onScreen(b.x,b.w)) ctx.fillRect(b.x,b.y,b.w,b.h); }
-  ctx.fillStyle='#cfeeff'; for(const p of plats){ if(p.ice && onScreen(p.x,p.w)) ctx.fillRect(p.x,p.y,p.w,p.h); }
-
-  // hazards/items
-  ctx.fillStyle='#ff6666'; for(const s of spikes){ if(onScreen(s.x,s.w)) ctx.fillRect(s.x,s.y,s.w,s.h); }
-  ctx.fillStyle='#00ffff'; for(const w of waters){ if(onScreen(w.x,w.w)) ctx.fillRect(w.x,w.y,w.w,w.h); }
-  ctx.fillStyle='#ffd700'; for(const c of checkpoints){ if(onScreen(c.x,c.w)) ctx.fillRect(c.x,c.y,c.w,c.h); }
-  ctx.fillStyle='#ffff00'; for(const r of rings){ if(onScreen(r.x,r.w)) ctx.fillRect(r.x,r.y,r.w,r.h); }
-  collectibles.forEach(c=>{ if(c.taken||!onScreen(c.x,c.w)) return; ctx.fillStyle = (c.type==='heart')?'#ff3b3b':'#3b82f6'; ctx.fillRect(c.x,c.y,c.w,c.h); });
-
-  // enemies & bullets
-  enemies.forEach(e=>{ if(!onScreen(e.x,e.w)) return; ctx.fillStyle = e.type==='jumper'? '#32cd32' : e.type==='flyer'? '#ffa500' : e.type==='boss'? '#800000' : e.type==='shield'? '#7c3aed' : '#9370db'; ctx.fillRect(e.x,e.y,e.w,e.h); });
-  ctx.fillStyle='#222'; projectiles.forEach(b=>{ if(onScreen(b.x,b.w)) ctx.fillRect(b.x,b.y,b.w,b.h); });
-
-  // goal
-  ctx.fillStyle='#ffc0cb'; ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
-
-  // player
-  ctx.fillStyle='#ff69b4'; ctx.fillRect(player.x,player.y,player.w,player.h);
-
-  // darkness overlay (after world & player). Simple glow instead of masking for speed.
-  darks.forEach(d=>{ if(!onScreen(d.x,d.w)) return; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(d.x,d.y,d.w,d.h); if(player.glow){ ctx.beginPath(); ctx.arc(player.x+10,player.y+10,80,0,Math.PI*2); ctx.fillStyle='rgba(255,255,200,0.35)'; ctx.fill(); }});
+  ctx.fillStyle="#ffc0cb"; ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
+  ctx.fillStyle="#add8e6"; plats.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
+  ctx.fillStyle="#ff6666"; spikes.forEach(s=>ctx.fillRect(s.x,s.y,s.w,s.h));
+  movers.forEach(m=>{ctx.fillStyle="#20b2aa"; ctx.fillRect(m.x,m.y,m.w,m.h);});
+  enemies.forEach(e=>{ ctx.fillStyle=(e.type===0?'#9370db':e.type===1?'#32cd32':'#ffa500'); ctx.fillRect(e.x,e.y,e.w,e.h); });
+  ctx.fillStyle="#ffd700"; checkpoints.forEach(c=>ctx.fillRect(c.x,c.y,c.w,c.h));
+  ctx.fillStyle="#ff69b4"; ctx.fillRect(player.x,player.y,player.w,player.h);
 
   ctx.restore();
 }
 
-function loop(){ update(); draw(); requestAnimationFrame(loop); } loop();
-
-// ===== Progress / Levels =====
-function nextLevel(){
-  furthestUnlocked = Math.max(furthestUnlocked, currentLevel+1);
-  if(currentLevel < 10){ loadLevel(currentLevel+1); refreshLevelButtons(); }
-  else { paused = true; document.getElementById('win').style.display='flex'; }
+function loop(){
+  update();
+  cameraX=Math.max(0,Math.min(player.x-200,worldWidth-canvas.width));
+  draw();
+  requestAnimationFrame(loop);
 }
-function restartAll(){ document.getElementById('win').style.display='none'; paused=false; furthestUnlocked=1; loadLevel(1); refreshLevelButtons(); }
+loop();
 
-// ===== Controls =====
-window.addEventListener('keydown',e=>{ if(e.key==='ArrowLeft')keys.left=true; if(e.key==='ArrowRight')keys.right=true; if(e.key==='ArrowUp' || e.key===' ')keys.jump=true; if(e.key==='Escape') toggleMenu(); });
-window.addEventListener('keyup',e=>{ if(e.key==='ArrowLeft')keys.left=false; if(e.key==='ArrowRight')keys.right=false; if(e.key==='ArrowUp' || e.key===' ')keys.jump=false; });
-function bind(btn,prop){ btn.addEventListener('touchstart',e=>{e.preventDefault();keys[prop]=true;},{passive:false}); btn.addEventListener('touchend',e=>{e.preventDefault();keys[prop]=false;},{passive:false}); btn.addEventListener('mousedown',()=>keys[prop]=true); btn.addEventListener('mouseup',()=>keys[prop]=false); }
-bind(document.getElementById('left'),'left'); bind(document.getElementById('right'),'right'); bind(document.getElementById('jump'),'jump');
-
-// ===== Level Select UI =====
-const menu = document.getElementById('menu');
-document.getElementById('menuBtn').addEventListener('click',()=>{ toggleMenu(true); });
-document.getElementById('closeMenu').addEventListener('click',()=>{ toggleMenu(false); });
-
-function toggleMenu(open){ if(typeof open==='boolean'){ menu.style.display=open?'flex':'none'; paused=open; } else { const show = menu.style.display!=='flex'; toggleMenu(show); } }
-
-function refreshLevelButtons(){
-  const wrap = document.getElementById('levels');
-  wrap.innerHTML='';
-  for(let i=1;i<=10;i++){
-    const b=document.createElement('button');
-    b.textContent='Level '+i;
-    const unlocked = i<=furthestUnlocked;
-    b.className = unlocked? 'unlocked':'locked';
-    b.disabled = !unlocked;
-    b.addEventListener('click',()=>{ toggleMenu(false); loadLevel(i); });
-    wrap.appendChild(b);
+// ---------------- HELPERS ----------------
+function reset(){ player.x=player.checkpoint.x; player.y=player.checkpoint.y; player.vx=player.vy=0; }
+function levelComplete(){
+  if(currentLevel===1){
+    unlockedLevels=2;
+    document.getElementById("lvl2").disabled=false;
+    backToMenu();
+  } else {
+    document.getElementById("win").style.display="flex";
   }
 }
+function backToMenu(){
+  document.getElementById("win").style.display="none";
+  document.getElementById("menu").style.display="flex";
+}
 
-// ===== Boot =====
-loadLevel(1); refreshLevelButtons();
+// ---------------- CONTROLS ----------------
+window.addEventListener("keydown",e=>{ if(e.key==="ArrowLeft")keys.left=true; if(e.key==="ArrowRight")keys.right=true; if(e.key==="ArrowUp")keys.jump=true; });
+window.addEventListener("keyup",e=>{ if(e.key==="ArrowLeft")keys.left=false; if(e.key==="ArrowRight")keys.right=false; if(e.key==="ArrowUp")keys.jump=false; });
+function bind(btn,prop){
+  btn.addEventListener("touchstart",e=>{e.preventDefault();keys[prop]=true;},{passive:false});
+  btn.addEventListener("touchend",e=>{e.preventDefault();keys[prop]=false;},{passive:false});
+  btn.addEventListener("mousedown",()=>keys[prop]=true);
+  btn.addEventListener("mouseup",()=>keys[prop]=false);
+}
+bind(document.getElementById("left"),"left");
+bind(document.getElementById("right"),"right");
+bind(document.getElementById("jump"),"jump");
+
+// ---------------- MENU BUTTONS ----------------
+document.getElementById("lvl1").onclick=()=>loadLevel(1);
+document.getElementById("lvl2").onclick=()=>{if(unlockedLevels>=2) loadLevel(2);};
+
+// Start at menu
+document.getElementById("menu").style.display="flex";
 </script>
 </body>
 </html>
+
 
 
 
