@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>Peculiar's Scary Adventure 💖</title>
+<title>Peculiar's Epic Adventure 💖</title>
 <style>
   body { margin:0; background:#ffe6f0; overflow:hidden; }
   #gameWrap { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; }
@@ -24,7 +24,7 @@
 </div>
 <div id="win">
   <h1>Congrats Peculiar 💖</h1>
-  <p>LECZY thinks you're Perfect 💕</p>
+  <p>Leczy likes you 💕 What do you think of him btw?</p>
   <button onclick="restart()">Play Again</button>
 </div>
 <script>
@@ -43,14 +43,14 @@ window.addEventListener("resize",resizeCanvas);
 resizeCanvas();
 
 let player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,checkpoint:{x:20,y:420},jumping:false};
-const worldWidth=12000;
+const worldWidth=20000;
 const worldHeight=480;
-let goal={x:11950,y:420,w:30,h:30};
+let goal={x:19950,y:420,w:30,h:30};
 
-let checkpoints=[
-  {x:1000,y:430,w:20,h:30},{x:2500,y:430,w:20,h:30},{x:4000,y:430,w:20,h:30},{x:5500,y:430,w:20,h:30},
-  {x:7000,y:430,w:20,h:30},{x:8500,y:430,w:20,h:30},{x:10000,y:430,w:20,h:30},{x:11500,y:430,w:20,h:30}
-];
+let checkpoints=[];
+for(let i=1300;i<worldWidth;i+=1300){
+  checkpoints.push({x:i,y:430,w:20,h:30});
+}
 
 let plats=[{x:0,y:460,w:worldWidth,h:20}];
 for(let i=200;i<worldWidth-200;i+=250){
@@ -64,12 +64,12 @@ for(let i=350;i<worldWidth-200;i+=300){
 
 let enemies=[];
 function randomEnemy(x){
-  let type=Math.floor(Math.random()*5)+4; // types 4-8 only
+  let type=Math.floor(Math.random()*10)+4; // types 4-13
   let baseY=420;
   let dir=Math.random()<0.5?-1:1;
   return {x:x,y:baseY,w:20,h:20,dir:dir,min:x-50,max:x+150,type:type,vy:0,baseY:baseY,onGround:true,lastTeleport:0,projectiles:[],pause:0};
 }
-for(let i=600;i<worldWidth-200;i+=500){
+for(let i=600;i<worldWidth-200;i+=600){
   enemies.push(randomEnemy(i));
 }
 
@@ -98,27 +98,45 @@ function update(){
 
   for(let e of enemies){
     switch(e.type){
-      case 4: 
+      case 4: // Patroller
         if(!e.pause && Math.random()<0.01) e.pause=60;
         if(e.pause){ e.pause--; } else { e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
         break;
-      case 5: 
+      case 5: // Bouncer
         if(e.onGround && Math.random()<0.02){ e.vy=-12; e.onGround=false; } e.vy+=0.5; e.y+=e.vy;
         if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; }
         break;
-      case 6: 
+      case 6: // Flying
         e.y=e.baseY+Math.sin(Date.now()/300+e.x/50)*60; e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; break;
-      case 7: 
+      case 7: // Teleporter
         if(Date.now()-e.lastTeleport>2000){ e.x = e.min+Math.random()*(e.max-e.min); e.lastTeleport=Date.now(); }
         break;
-      case 8: 
+      case 8: // Projectile Shooter
         if(Date.now()%90===0){ projectiles.push({x:e.x+10,y:e.y+10,vx:(player.x-e.x)/50,vy:-5,w:5,h:5}); }
         break;
+      case 9: // Laser Turret
+        if(Date.now()%120===0){ projectiles.push({x:e.x,y:e.y+10,vx:5,vy:0,w:10,h:2}); }
+        break;
+      case 10: // Sine Wave Flyer
+        e.y=e.baseY+Math.sin(Date.now()/200+e.x/30)*80; e.x+=3*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; break;
+      case 11: // Falling Spike Trap
+        if(Math.abs(player.x-e.x)<40 && e.y==e.baseY) e.y-=100; e.y+=5; if(e.y>e.baseY) e.y=e.baseY; break;
+      case 12: // Boomerang Thrower
+        if(Date.now()%150===0){ projectiles.push({x:e.x+10,y:e.y+10,vx:6*e.dir,vy:0,w:8,h:8,return:true,startX:e.x}); }
+        break;
+      case 13: // Invisible Stalker
+        if(Math.abs(player.x-e.x)<200){ e.x += e.dir*2; } break;
     }
     if(rect(player,e)) reset();
   }
 
-  for(let p of projectiles){ p.x+=p.vx; p.y+=p.vy; if(rect(player,p)) reset(); }
+  for(let p of projectiles){ 
+    p.x+=p.vx; p.y+=p.vy; 
+    if(p.return){
+      if(Math.abs(p.x-p.startX)>150) p.vx*=-1;
+    }
+    if(rect(player,p)) reset(); 
+  }
 
   for(let c of checkpoints){ if(rect(player,c)) player.checkpoint={x:c.x,y:c.y-10}; }
 
@@ -143,7 +161,12 @@ function draw(){
         case 5: ctx.fillStyle="#00CED1"; break; 
         case 6: ctx.fillStyle="#FFA500"; break; 
         case 7: ctx.fillStyle="#FF1493"; break; 
-        case 8: ctx.fillStyle="#8B0000"; break; 
+        case 8: ctx.fillStyle="#8B0000"; break;
+        case 9: ctx.fillStyle="#FF00FF"; break;
+        case 10: ctx.fillStyle="#9400D3"; break;
+        case 11: ctx.fillStyle="#DC143C"; break;
+        case 12: ctx.fillStyle="#FFD700"; break;
+        case 13: ctx.fillStyle="#000"; break;
       }
       ctx.fillRect(e.x,e.y,e.w,e.h);
     }
@@ -179,6 +202,7 @@ bind(document.getElementById("jump"),"jump");
 </script>
 </body>
 </html>
+
 
 
 
