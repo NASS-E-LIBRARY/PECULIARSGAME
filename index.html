@@ -3,29 +3,29 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>Peculiar's Epic Adventure 💖</title>
+<title>Peculiar's Extended Adventure 💖</title>
 <style>
-  body { margin:0; background:#ffe6f0; overflow:hidden; }
-  #gameWrap { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; }
-  canvas { background:linear-gradient(#b3e5fc, #fff); border:4px solid #ff99cc; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
-  #controls { position:fixed; bottom:20px; left:0; right:0; display:flex; justify-content:space-around; z-index:10; }
-  button { width:80px; height:80px; border-radius:50%; border:none; background:#fff0f5; font-size:26px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
-  #win { display:none; position:fixed; inset:0; background:rgba(0,0,0,.95); color:#fff; font-family:sans-serif; justify-content:center; align-items:center; flex-direction:column; z-index:20; padding:20px; text-align:center; }
-  #win h1 { background:#ff99cc; padding:20px; border-radius:20px; max-width:90%; }
-  #win p { font-size:18px; margin-top:20px; max-width:90%; }
+body { margin:0; background:#ffe6f0; overflow:hidden; }
+#gameWrap { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; }
+canvas { background:linear-gradient(#b3e5fc, #fff); border:4px solid #ff99cc; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.2); touch-action:none; }
+#controls { position:fixed; bottom:20px; left:0; right:0; display:flex; justify-content:space-around; z-index:10; }
+button { width:80px; height:80px; border-radius:50%; border:none; background:#fff0f5; font-size:26px; box-shadow:0 4px 10px rgba(0,0,0,.2); }
+#win { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); color:#fff; font-family:sans-serif; justify-content:center; align-items:center; flex-direction:column; z-index:20; padding:20px; text-align:center; }
+#win h1 { background:#ff99cc; padding:20px; border-radius:20px; max-width:90%; }
+#win p { font-size:18px; margin-top:20px; max-width:90%; }
 </style>
 </head>
 <body>
 <div id="gameWrap"><canvas id="game" width="800" height="480"></canvas></div>
 <div id="controls">
-  <button id="left">◀</button>
-  <button id="jump">⟰</button>
-  <button id="right">▶</button>
+<button id="left">◀</button>
+<button id="jump">⟰</button>
+<button id="right">▶</button>
 </div>
 <div id="win">
-  <h1>Congrats Peculiar 💖</h1>
-  <p>Leczy likes you 💕 What do you think of him btw?</p>
-  <button onclick="restart()">Play Again</button>
+<h1>Congrats Peculiar 💖</h1>
+<p>Leczy likes you 💕 What do you think of him btw?</p>
+<button onclick="restart()">Play Again</button>
 </div>
 <script>
 const canvas=document.getElementById("game");
@@ -46,100 +46,62 @@ let player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,checkpoint:{x:20,y:420
 const worldWidth=20000;
 const worldHeight=480;
 let goal={x:19950,y:420,w:30,h:30};
-
-let checkpoints=[];
-for(let i=1300;i<worldWidth;i+=1300){
-  checkpoints.push({x:i,y:430,w:20,h:30});
-}
+let checkpoints=[{x:1000,y:430,w:20,h:30},{x:5000,y:430,w:20,h:30},{x:10000,y:430,w:20,h:30},{x:15000,y:430,w:20,h:30}];
 
 let plats=[{x:0,y:460,w:worldWidth,h:20}];
-for(let i=200;i<worldWidth-200;i+=250){
-  plats.push({x:i,y:400-Math.random()*250,w:60+Math.random()*40,h:10});
+for(let i=200;i<19800;i+=300){
+  plats.push({x:i,y:400-Math.random()*200,w:100,h:10});
 }
 
 let spikes=[];
-for(let i=350;i<worldWidth-200;i+=300){
+for(let i=400;i<19800;i+=400){
   spikes.push({x:i,y:440,w:40,h:20});
 }
 
 let enemies=[];
-function randomEnemy(x){
-  let type=Math.floor(Math.random()*10)+4; // types 4-13
-  let baseY=420;
-  let dir=Math.random()<0.5?-1:1;
-  return {x:x,y:baseY,w:20,h:20,dir:dir,min:x-50,max:x+150,type:type,vy:0,baseY:baseY,onGround:true,lastTeleport:0,projectiles:[],pause:0};
+for(let i=600;i<19800;i+=600){
+  // Mix enemies strategically
+  let section = Math.floor(i/600) % 10;
+  switch(section){
+    case 0: enemies.push({x:i,y:420,w:20,h:20,type:0,dir:Math.random()<0.5?-1:1,vy:0,baseY:420,onGround:true}); break; // Purple Patroller
+    case 1: enemies.push({x:i,y:380,w:10,h:50,type:10,angle:0,dir:1,pivotX:i,pivotY:380,range:60,speed:0.05}); break; // Pendulum Blade
+    case 2: enemies.push({x:i,y:420,w:20,h:20,type:2,dir:Math.random()<0.5?-1:1,baseY:420}); break; // Orange Floater
+    case 3: enemies.push({x:i,y:420,w:20,h:60,type:9,fireTimer:Math.floor(Math.random()*120),burstY:420}); break; // Fireburst Totem
+    case 4: enemies.push({x:i,y:440,w:30,h:20,type:5,dir:1,range:80,speed:2}); break; // Spike Roller
+    case 5: enemies.push({x:i,y:420,w:20,h:20,type:6,fireTimer:Math.floor(Math.random()*180)}); break; // Laser Turret
+    case 6: enemies.push({x:i,y:380,w:20,h:20,type:7,teleportTimer:Math.floor(Math.random()*240)}); break; // Teleporting Eye
+    case 7: enemies.push({x:i,y:420,w:20,h:20,type:8,boomTimer:Math.floor(Math.random()*300)}); break; // Booming Skull
+    case 8: enemies.push({x:i,y:440,w:20,h:20,type:11,triggerTimer:Math.floor(Math.random()*200)}); break; // Trap Totem
+    case 9: enemies.push({x:i,y:400,w:20,h:40,type:12,invisible:true,appearTimer:Math.floor(Math.random()*300)}); break; // Invisible Phantom
+  }
 }
-for(let i=600;i<worldWidth-200;i+=600){
-  enemies.push(randomEnemy(i));
-}
-
-let projectiles=[];
 
 function rect(a,b){return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h)}
 
 function update(){
-  player.vy+=0.45;
-  if(keys.left) player.vx=-3.5; else if(keys.right) player.vx=3.5; else player.vx=0;
+  player.vy+=0.35;
+  if(keys.left) player.vx=-3; else if(keys.right) player.vx=3; else player.vx=0;
 
-  if(keys.jump && player.onGround && !player.jumping){player.vy=-10; player.onGround=false; player.jumping=true;}
-  if(!keys.jump && player.jumping && player.vy<-4){player.vy=-4; player.jumping=false;}
-  if(!keys.jump && player.onGround) player.jumping=false;
+  if(keys.jump && player.onGround && !player.jumping){player.vy=-9.5; player.onGround=false; player.jumping=true;}
+  if(!keys.jump && player.jumping && player.vy < -3){ player.vy=-3; player.jumping=false; }
+  if(!keys.jump && player.onGround){ player.jumping=false; }
 
   player.x+=player.vx; player.y+=player.vy;
   player.onGround=false;
-
-  for(let p of plats){
-    if(rect(player,p)){
-      if(player.vy>0){player.y=p.y-player.h;player.vy=0;player.onGround=true;}
-    }
-  }
-
+  for(let p of plats){ if(rect(player,p)){ if(player.vy>0){player.y=p.y-player.h;player.vy=0;player.onGround=true;} } }
   for(let s of spikes){ if(rect(player,s)) reset(); }
 
   for(let e of enemies){
     switch(e.type){
-      case 4: // Patroller
-        if(!e.pause && Math.random()<0.01) e.pause=60;
-        if(e.pause){ e.pause--; } else { e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
-        break;
-      case 5: // Bouncer
-        if(e.onGround && Math.random()<0.02){ e.vy=-12; e.onGround=false; } e.vy+=0.5; e.y+=e.vy;
-        if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; }
-        break;
-      case 6: // Flying
-        e.y=e.baseY+Math.sin(Date.now()/300+e.x/50)*60; e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; break;
-      case 7: // Teleporter
-        if(Date.now()-e.lastTeleport>2000){ e.x = e.min+Math.random()*(e.max-e.min); e.lastTeleport=Date.now(); }
-        break;
-      case 8: // Projectile Shooter
-        if(Date.now()%90===0){ projectiles.push({x:e.x+10,y:e.y+10,vx:(player.x-e.x)/50,vy:-5,w:5,h:5}); }
-        break;
-      case 9: // Laser Turret
-        if(Date.now()%120===0){ projectiles.push({x:e.x,y:e.y+10,vx:5,vy:0,w:10,h:2}); }
-        break;
-      case 10: // Sine Wave Flyer
-        e.y=e.baseY+Math.sin(Date.now()/200+e.x/30)*80; e.x+=3*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; break;
-      case 11: // Falling Spike Trap
-        if(Math.abs(player.x-e.x)<40 && e.y==e.baseY) e.y-=100; e.y+=5; if(e.y>e.baseY) e.y=e.baseY; break;
-      case 12: // Boomerang Thrower
-        if(Date.now()%150===0){ projectiles.push({x:e.x+10,y:e.y+10,vx:6*e.dir,vy:0,w:8,h:8,return:true,startX:e.x}); }
-        break;
-      case 13: // Invisible Stalker
-        if(Math.abs(player.x-e.x)<200){ e.x += e.dir*2; } break;
+      case 0: e.x+=2*e.dir; if(e.x<0||e.x>worldWidth) e.dir*=-1; if(rect(player,e)) reset(); break;
+      case 2: e.y=e.baseY+Math.sin(Date.now()/400)*40; e.x+=1.5*e.dir; if(e.x<0||e.x>worldWidth) e.dir*=-1; if(rect(player,e)) reset(); break;
+      case 9: e.fireTimer++; if(e.fireTimer%180<30){ e.burstY-=20; if(rect(player,{x:e.x,y:e.burstY,w:e.w,h:e.y-e.burstY})) reset(); } else { e.burstY=e.y; } break;
+      case 10: e.angle+=e.speed*e.dir; if(e.angle>Math.PI/4 || e.angle<-Math.PI/4) e.dir*=-1; let pivot={x:e.pivotX,y:e.pivotY}; e.x=pivot.x+Math.sin(e.angle)*e.range; e.y=pivot.y+Math.cos(e.angle)*e.range-e.h/2; if(rect(player,e)) reset(); break;
+      default: break; // other enemy types can have custom logic added if desired
     }
-    if(rect(player,e)) reset();
-  }
-
-  for(let p of projectiles){ 
-    p.x+=p.vx; p.y+=p.vy; 
-    if(p.return){
-      if(Math.abs(p.x-p.startX)>150) p.vx*=-1;
-    }
-    if(rect(player,p)) reset(); 
   }
 
   for(let c of checkpoints){ if(rect(player,c)) player.checkpoint={x:c.x,y:c.y-10}; }
-
   if(player.y>worldHeight) reset();
   if(rect(player,goal)) win();
 }
@@ -150,29 +112,21 @@ function draw(){
   ctx.translate(-cameraX,0);
 
   ctx.fillStyle="#ffc0cb"; ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
-
   ctx.fillStyle="#add8e6"; plats.forEach(p=>{if(p.x+p.w>cameraX && p.x<cameraX+canvas.width) ctx.fillRect(p.x,p.y,p.w,p.h);});
   ctx.fillStyle="#ff6666"; spikes.forEach(s=>{if(s.x+s.w>cameraX && s.x<cameraX+canvas.width) ctx.fillRect(s.x,s.y,s.w,s.h);});
 
   enemies.forEach(e=>{
     if(e.x+e.w>cameraX && e.x<cameraX+canvas.width){
       switch(e.type){
-        case 4: ctx.fillStyle="#008000"; break; 
-        case 5: ctx.fillStyle="#00CED1"; break; 
-        case 6: ctx.fillStyle="#FFA500"; break; 
-        case 7: ctx.fillStyle="#FF1493"; break; 
-        case 8: ctx.fillStyle="#8B0000"; break;
-        case 9: ctx.fillStyle="#FF00FF"; break;
-        case 10: ctx.fillStyle="#9400D3"; break;
-        case 11: ctx.fillStyle="#DC143C"; break;
-        case 12: ctx.fillStyle="#FFD700"; break;
-        case 13: ctx.fillStyle="#000"; break;
+        case 0: ctx.fillStyle="#9370db"; ctx.fillRect(e.x,e.y,e.w,e.h); break;
+        case 2: ctx.fillStyle="#ffa500"; ctx.fillRect(e.x,e.y,e.w,e.h); break;
+        case 9: ctx.fillStyle="#ff4500"; ctx.fillRect(e.x,e.y,e.w,e.h); if(e.fireTimer%180<30){ ctx.fillStyle="#ff8c00"; ctx.fillRect(e.x,e.burstY,e.w,e.y-e.burstY); } break;
+        case 10: ctx.fillStyle="#8b0000"; ctx.fillRect(e.x,e.y,e.w,e.h); break;
+        default: ctx.fillStyle="#32cd32"; ctx.fillRect(e.x,e.y,e.w,e.h); break;
       }
-      ctx.fillRect(e.x,e.y,e.w,e.h);
     }
   });
 
-  ctx.fillStyle="#000"; projectiles.forEach(p=>{ if(p.x+p.w>cameraX && p.x<cameraX+canvas.width) ctx.fillRect(p.x,p.y,p.w,p.h); });
   ctx.fillStyle="#ffd700"; checkpoints.forEach(c=>{if(c.x+c.w>cameraX && c.x<cameraX+canvas.width) ctx.fillRect(c.x,c.y,c.w,c.h);});
   ctx.fillStyle="#ff69b4"; ctx.fillRect(player.x,player.y,player.w,player.h);
 
@@ -180,7 +134,7 @@ function draw(){
 }
 
 let cameraX=0;
-function loop(){ update(); cameraX=Math.max(0,Math.min(player.x-200,worldWidth-canvas.width)); draw(); requestAnimationFrame(loop); }
+function loop(){ update(); cameraX=Math.max(0,Math.min(player.x-200,worldWidth-canvas.width)); draw(); requestAnimationFrame(loop);}
 loop();
 
 function reset(){player.x=player.checkpoint.x;player.y=player.checkpoint.y;player.vx=player.vy=0;}
@@ -190,18 +144,14 @@ function restart(){document.getElementById("win").style.display="none"; player.c
 window.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")keys.left=true;if(e.key==="ArrowRight")keys.right=true;if(e.key==="ArrowUp")keys.jump=true;});
 window.addEventListener("keyup",e=>{if(e.key==="ArrowLeft")keys.left=false;if(e.key==="ArrowRight")keys.right=false;if(e.key==="ArrowUp")keys.jump=false;});
 
-function bind(btn,prop){
-  btn.addEventListener("touchstart",e=>{e.preventDefault();keys[prop]=true;},{passive:false});
-  btn.addEventListener("touchend",e=>{e.preventDefault();keys[prop]=false;},{passive:false});
-  btn.addEventListener("mousedown",()=>keys[prop]=true);
-  btn.addEventListener("mouseup",()=>keys[prop]=false);
-}
+function bind(btn,prop){ btn.addEventListener("touchstart",e=>{e.preventDefault();keys[prop]=true;},{passive:false}); btn.addEventListener("touchend",e=>{e.preventDefault();keys[prop]=false;},{passive:false}); btn.addEventListener("mousedown",()=>keys[prop]=true); btn.addEventListener("mouseup",()=>keys[prop]=false);}
 bind(document.getElementById("left"),"left");
 bind(document.getElementById("right"),"right");
 bind(document.getElementById("jump"),"jump");
 </script>
 </body>
 </html>
+
 
 
 
