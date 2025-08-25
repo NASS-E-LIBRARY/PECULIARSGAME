@@ -64,7 +64,7 @@ for(let i=350;i<worldWidth-200;i+=300){
 
 let enemies=[];
 function randomEnemy(x){
-  let type=Math.floor(Math.random()*6)+3;
+  let type=Math.floor(Math.random()*5)+4; // types 4-8 only
   let baseY=420;
   let dir=Math.random()<0.5?-1:1;
   return {x:x,y:baseY,w:20,h:20,dir:dir,min:x-50,max:x+150,type:type,vy:0,baseY:baseY,onGround:true,lastTeleport:0,projectiles:[],pause:0};
@@ -98,12 +98,6 @@ function update(){
 
   for(let e of enemies){
     switch(e.type){
-      case 3: // Chaser adjusted
-        if(Math.abs(player.x - e.x) < 250){ 
-            e.dir = player.x > e.x ? 1 : -1;
-            e.x += 2 * e.dir; 
-        }
-        break;
       case 4: 
         if(!e.pause && Math.random()<0.01) e.pause=60;
         if(e.pause){ e.pause--; } else { e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
@@ -145,7 +139,6 @@ function draw(){
   enemies.forEach(e=>{
     if(e.x+e.w>cameraX && e.x<cameraX+canvas.width){
       switch(e.type){
-        case 3: ctx.fillStyle="#800080"; break; 
         case 4: ctx.fillStyle="#008000"; break; 
         case 5: ctx.fillStyle="#00CED1"; break; 
         case 6: ctx.fillStyle="#FFA500"; break; 
@@ -186,6 +179,7 @@ bind(document.getElementById("jump"),"jump");
 </script>
 </body>
 </html>
+
 
 
 
