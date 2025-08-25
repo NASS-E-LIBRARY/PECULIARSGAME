@@ -32,7 +32,6 @@ const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 let keys={left:false,right:false,jump:false};
 
-// Scale canvas to full width on mobile
 function resizeCanvas(){
   const maxW=window.innerWidth;
   const maxH=window.innerHeight-120;
@@ -43,58 +42,45 @@ function resizeCanvas(){
 window.addEventListener("resize",resizeCanvas);
 resizeCanvas();
 
-// player
 let player={x:20,y:420,w:20,h:20,vx:0,vy:0,onGround:false,checkpoint:{x:20,y:420},jumping:false};
-
-// world
 const worldWidth=12000;
 const worldHeight=480;
-
-// goal
 let goal={x:11950,y:420,w:30,h:30};
 
-// checkpoints
 let checkpoints=[
   {x:1000,y:430,w:20,h:30},{x:2500,y:430,w:20,h:30},{x:4000,y:430,w:20,h:30},{x:5500,y:430,w:20,h:30},
   {x:7000,y:430,w:20,h:30},{x:8500,y:430,w:20,h:30},{x:10000,y:430,w:20,h:30},{x:11500,y:430,w:20,h:30}
 ];
 
-// platforms
 let plats=[{x:0,y:460,w:worldWidth,h:20}];
 for(let i=200;i<worldWidth-200;i+=250){
   plats.push({x:i,y:400-Math.random()*250,w:60+Math.random()*40,h:10});
 }
 
-// spikes
 let spikes=[];
 for(let i=350;i<worldWidth-200;i+=300){
   spikes.push({x:i,y:440,w:40,h:20});
 }
 
-// enemies
 let enemies=[];
 function randomEnemy(x){
-  let type=Math.floor(Math.random()*6)+3; // types 3-8
+  let type=Math.floor(Math.random()*6)+3;
   let baseY=420;
   let dir=Math.random()<0.5?-1:1;
-  return {x:x,y:baseY,w:20,h:20,dir:dir,min:x-50,max:x+150,type:type,vy:0,baseY:baseY,onGround:true,lastTeleport:0,projectiles:[]};
+  return {x:x,y:baseY,w:20,h:20,dir:dir,min:x-50,max:x+150,type:type,vy:0,baseY:baseY,onGround:true,lastTeleport:0,projectiles:[],pause:0};
 }
 for(let i=600;i<worldWidth-200;i+=500){
   enemies.push(randomEnemy(i));
 }
 
-// projectiles array
 let projectiles=[];
 
 function rect(a,b){return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h)}
 
-// update
 function update(){
-  // gravity
   player.vy+=0.45;
   if(keys.left) player.vx=-3.5; else if(keys.right) player.vx=3.5; else player.vx=0;
 
-  // jump
   if(keys.jump && player.onGround && !player.jumping){player.vy=-10; player.onGround=false; player.jumping=true;}
   if(!keys.jump && player.jumping && player.vy<-4){player.vy=-4; player.jumping=false;}
   if(!keys.jump && player.onGround) player.jumping=false;
@@ -102,89 +88,76 @@ function update(){
   player.x+=player.vx; player.y+=player.vy;
   player.onGround=false;
 
-  // platforms
   for(let p of plats){
     if(rect(player,p)){
       if(player.vy>0){player.y=p.y-player.h;player.vy=0;player.onGround=true;}
     }
   }
 
-  // spikes
   for(let s of spikes){ if(rect(player,s)) reset(); }
 
-  // enemies
   for(let e of enemies){
     switch(e.type){
-      case 3: // Chaser
-        if(Math.abs(player.x-e.x)<400){ e.dir = player.x>e.x?1:-1; e.x += 3*e.dir; }
+      case 3: // Chaser adjusted
+        if(Math.abs(player.x - e.x) < 250){ 
+            e.dir = player.x > e.x ? 1 : -1;
+            e.x += 2 * e.dir; 
+        }
         break;
-      case 4: // Patroller with stops
+      case 4: 
         if(!e.pause && Math.random()<0.01) e.pause=60;
         if(e.pause){ e.pause--; } else { e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; }
         break;
-      case 5: // Bouncer
+      case 5: 
         if(e.onGround && Math.random()<0.02){ e.vy=-12; e.onGround=false; } e.vy+=0.5; e.y+=e.vy;
         if(e.y>=e.baseY){ e.y=e.baseY; e.vy=0; e.onGround=true; }
         break;
-      case 6: // Flying sinusoidal
+      case 6: 
         e.y=e.baseY+Math.sin(Date.now()/300+e.x/50)*60; e.x+=2*e.dir; if(e.x<e.min||e.x>e.max) e.dir*=-1; break;
-      case 7: // Teleporter
+      case 7: 
         if(Date.now()-e.lastTeleport>2000){ e.x = e.min+Math.random()*(e.max-e.min); e.lastTeleport=Date.now(); }
         break;
-      case 8: // Projectile shooter
+      case 8: 
         if(Date.now()%90===0){ projectiles.push({x:e.x+10,y:e.y+10,vx:(player.x-e.x)/50,vy:-5,w:5,h:5}); }
         break;
     }
     if(rect(player,e)) reset();
   }
 
-  // projectiles
   for(let p of projectiles){ p.x+=p.vx; p.y+=p.vy; if(rect(player,p)) reset(); }
 
-  // checkpoints
   for(let c of checkpoints){ if(rect(player,c)) player.checkpoint={x:c.x,y:c.y-10}; }
 
   if(player.y>worldHeight) reset();
   if(rect(player,goal)) win();
 }
 
-// draw
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.save();
   ctx.translate(-cameraX,0);
 
-  // goal
   ctx.fillStyle="#ffc0cb"; ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
 
-  // platforms
   ctx.fillStyle="#add8e6"; plats.forEach(p=>{if(p.x+p.w>cameraX && p.x<cameraX+canvas.width) ctx.fillRect(p.x,p.y,p.w,p.h);});
-
-  // spikes
   ctx.fillStyle="#ff6666"; spikes.forEach(s=>{if(s.x+s.w>cameraX && s.x<cameraX+canvas.width) ctx.fillRect(s.x,s.y,s.w,s.h);});
 
-  // enemies
   enemies.forEach(e=>{
     if(e.x+e.w>cameraX && e.x<cameraX+canvas.width){
       switch(e.type){
-        case 3: ctx.fillStyle="#800080"; break; // Chaser
-        case 4: ctx.fillStyle="#008000"; break; // Patroller
-        case 5: ctx.fillStyle="#00CED1"; break; // Bouncer
-        case 6: ctx.fillStyle="#FFA500"; break; // Flying
-        case 7: ctx.fillStyle="#FF1493"; break; // Teleporter
-        case 8: ctx.fillStyle="#8B0000"; break; // Shooter
+        case 3: ctx.fillStyle="#800080"; break; 
+        case 4: ctx.fillStyle="#008000"; break; 
+        case 5: ctx.fillStyle="#00CED1"; break; 
+        case 6: ctx.fillStyle="#FFA500"; break; 
+        case 7: ctx.fillStyle="#FF1493"; break; 
+        case 8: ctx.fillStyle="#8B0000"; break; 
       }
       ctx.fillRect(e.x,e.y,e.w,e.h);
     }
   });
 
-  // projectiles
   ctx.fillStyle="#000"; projectiles.forEach(p=>{ if(p.x+p.w>cameraX && p.x<cameraX+canvas.width) ctx.fillRect(p.x,p.y,p.w,p.h); });
-
-  // checkpoints
   ctx.fillStyle="#ffd700"; checkpoints.forEach(c=>{if(c.x+c.w>cameraX && c.x<cameraX+canvas.width) ctx.fillRect(c.x,c.y,c.w,c.h);});
-
-  // player
   ctx.fillStyle="#ff69b4"; ctx.fillRect(player.x,player.y,player.w,player.h);
 
   ctx.restore();
@@ -198,11 +171,9 @@ function reset(){player.x=player.checkpoint.x;player.y=player.checkpoint.y;playe
 function win(){document.getElementById("win").style.display="flex";}
 function restart(){document.getElementById("win").style.display="none"; player.checkpoint={x:20,y:420}; reset();}
 
-// keyboard controls
 window.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")keys.left=true;if(e.key==="ArrowRight")keys.right=true;if(e.key==="ArrowUp")keys.jump=true;});
 window.addEventListener("keyup",e=>{if(e.key==="ArrowLeft")keys.left=false;if(e.key==="ArrowRight")keys.right=false;if(e.key==="ArrowUp")keys.jump=false;});
 
-// touch controls
 function bind(btn,prop){
   btn.addEventListener("touchstart",e=>{e.preventDefault();keys[prop]=true;},{passive:false});
   btn.addEventListener("touchend",e=>{e.preventDefault();keys[prop]=false;},{passive:false});
@@ -215,6 +186,7 @@ bind(document.getElementById("jump"),"jump");
 </script>
 </body>
 </html>
+
 
 
 
